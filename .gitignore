@@ -2,3 +2,4 @@
 *.ko
 *.mod.c
 modules.*
+*~
