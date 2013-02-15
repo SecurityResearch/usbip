@@ -65,20 +65,6 @@ static int get_busid_idx(const char *busid)
 	return idx;
 }
 
-struct bus_id_priv *get_busid_priv(const char *busid)
-{
-	int idx;
-	struct bus_id_priv *bid = NULL;
-
-	spin_lock(&busid_table_lock);
-	idx = get_busid_idx(busid);
-	if (idx >= 0)
-		bid = &(busid_table[idx]);
-	spin_unlock(&busid_table_lock);
-
-	return bid;
-}
-
 static int add_match_busid(char *busid)
 {
 	int i;
@@ -107,6 +93,29 @@ out:
 	spin_unlock(&busid_table_lock);
 
 	return ret;
+}
+
+struct bus_id_priv *get_busid_priv(const char *busid)
+{
+	int idx;
+	struct bus_id_priv *bid = NULL;
+
+	spin_lock(&busid_table_lock);
+	idx = get_busid_idx(busid);
+    if(idx < 0){
+        spin_unlock(&busid_table_lock); 
+        add_match_busid(busid);
+        spin_lock(&busid_table_lock);
+        idx = get_busid_idx(busid);
+        
+    }
+
+	if (idx >= 0)
+		bid = &(busid_table[idx]);
+        
+	spin_unlock(&busid_table_lock);
+    
+	return bid;
 }
 
 int del_match_busid(char *busid)
