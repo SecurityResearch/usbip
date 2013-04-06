@@ -81,6 +81,8 @@ static int recv_request_import(int sockfd)
 	int error = 0;
 	int rc;
 
+    unsigned int busnum,portnum;
+
 	memset(&req, 0, sizeof(req));
 	memset(&reply, 0, sizeof(reply));
 
@@ -90,10 +92,11 @@ static int recv_request_import(int sockfd)
 		return -1;
 	}
 	PACK_OP_IMPORT_REQUEST(0, &req);
-
+    sscanf(req.busid,"%u-%u",&busnum,&portnum);
 	dlist_for_each_data(host_driver->edev_list, edev,
 			    struct usbip_exported_device) {
-		if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
+		//if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
+        if(edev->udev.busnum == busnum){
 			info("found requested device: %s", req.busid);
 			found = 1;
 			break;

@@ -166,6 +166,25 @@ static void delete_nothing(void *unused_data)
 	(void) unused_data;
 }
 
+
+static int is_device(void *x)
+{
+	struct sysfs_attribute *bDeviceClass;
+	struct sysfs_device *dev = x;
+	int ret = 1;
+
+	bDeviceClass = sysfs_get_device_attr(dev, "bDeviceClass");
+	if (!bDeviceClass || atoi(bDeviceClass->value) != 9)
+		ret = 0;
+
+	return ret;
+}
+
+static int devcmp(void *a, void *b)
+{
+	return strcmp(a, b);
+}
+
 static int refresh_exported_devices(void)
 {
 	/* sysfs_device of usb_interface */
@@ -205,6 +224,9 @@ static int refresh_exported_devices(void)
 		}
 	}
 
+	/* include root hubs from device list */
+	dlist_filter_sort(sudev_list, is_device, devcmp);
+
 	dlist_for_each_data(sudev_list, sudev, struct sysfs_device) {
 		edev = usbip_exported_device_new(sudev->path);
 		if (!edev) {
@@ -237,7 +259,7 @@ static struct sysfs_driver *open_sysfs_host_driver(void)
 
 	snprintf(host_drv_path, SYSFS_PATH_MAX, "%s/%s/%s/%s/%s",
 		 sysfs_mntpath, SYSFS_BUS_NAME, bus_type, SYSFS_DRIVERS_NAME,
-		 USBIP_HOST_DRV_NAME);
+		 USB_HUB_DRV_NAME);
 
 	host_drv = sysfs_open_driver_path(host_drv_path);
 	if (!host_drv) {

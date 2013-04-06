@@ -26,6 +26,7 @@
 /* kernel module names */
 #define USBIP_CORE_MOD_NAME	"usbip-core"
 #define USBIP_HOST_DRV_NAME	"usbip-host"
+#define USB_HUB_DRV_NAME	"hub"
 #define USBIP_VHCI_DRV_NAME	"vhci_hcd"
 
 extern int usbip_use_syslog;
