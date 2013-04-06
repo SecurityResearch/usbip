@@ -213,6 +213,35 @@ int read_usb_hub_device(struct sysfs_device *sdev, struct usbip_usb_device *udev
 	return 0;
 }
 
+int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev)
+{
+	uint32_t busnum, devnum;
+
+	READ_ATTR(udev, uint8_t,  sdev, bDeviceClass,		"%02x\n");
+	READ_ATTR(udev, uint8_t,  sdev, bDeviceSubClass,	"%02x\n");
+	READ_ATTR(udev, uint8_t,  sdev, bDeviceProtocol,	"%02x\n");
+
+	READ_ATTR(udev, uint16_t, sdev, idVendor,		"%04x\n");
+	READ_ATTR(udev, uint16_t, sdev, idProduct,		"%04x\n");
+	READ_ATTR(udev, uint16_t, sdev, bcdDevice,		"%04x\n");
+
+	READ_ATTR(udev, uint8_t,  sdev, bConfigurationValue,	"%02x\n");
+	READ_ATTR(udev, uint8_t,  sdev, bNumConfigurations,	"%02x\n");
+	READ_ATTR(udev, uint8_t,  sdev, bNumInterfaces,		"%02x\n");
+
+	READ_ATTR(udev, uint8_t,  sdev, devnum,			"%d\n");
+	udev->speed = read_attr_speed(sdev);
+
+	strncpy(udev->path,  sdev->path,  SYSFS_PATH_MAX);
+	strncpy(udev->busid, sdev->name, SYSFS_BUS_ID_SIZE);
+
+	sscanf(sdev->name, "%u-%u", &busnum, &devnum);
+	
+	udev->busnum = busnum;
+
+	return 0;
+}
+
 int read_usb_interface(struct usbip_usb_device *udev, int i,
 		       struct usbip_usb_interface *uinf)
 {
