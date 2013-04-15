@@ -65,7 +65,8 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 
 		if (errno != ENOENT) {
 			dbg("stat failed: %s", attrpath);
-			return -1;
+            printf("%s file not found\n",attrpath);
+			return SDEV_ST_AVAILABLE;
 		}
 
 		usleep(10000); /* 10ms */
@@ -82,7 +83,8 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 	attr = sysfs_open_attribute(attrpath);
 	if (!attr) {
 		dbg("sysfs_open_attribute failed: %s", attrpath);
-		return -1;
+		printf("sysfs_open_attribute failed: %s\n", attrpath);
+		return SDEV_ST_AVAILABLE;
 	}
 
 	rc = sysfs_read_attribute(attr);
@@ -113,15 +115,17 @@ static struct usbip_exported_device *usbip_exported_device_new(char *sdevpath)
 
 	edev->sudev = sysfs_open_device_path(sdevpath);
 	if (!edev->sudev) {
-		dbg("sysfs_open_device_path failed: %s", sdevpath);
+		printf("sysfs_open_device_path failed: %s\n", sdevpath);
 		goto err;
 	}
 
 	read_usb_device(edev->sudev, &edev->udev);
-
+    //read_usb_hub_device(edev->sudev, &edev->udev);
 	edev->status = read_attr_usbip_status(&edev->udev);
-	if (edev->status < 0)
+	if (edev->status < 0){
+		printf("Status of device wrong: %s\n", sdevpath);
 		goto err;
+    }
 
 	/* reallocate buffer to include usb interface data */
 	size = sizeof(*edev) + edev->udev.bNumInterfaces *
@@ -129,7 +133,7 @@ static struct usbip_exported_device *usbip_exported_device_new(char *sdevpath)
 
 	edev = realloc(edev, size);
 	if (!edev) {
-		dbg("realloc failed");
+		printf("realloc failed\n");
 		goto err;
 	}
 
@@ -214,7 +218,7 @@ static int refresh_exported_devices(void)
 		/* get usb device of this usb interface */
 		sudev = sysfs_get_device_parent(suintf);
 		if (!sudev) {
-			dbg("sysfs_get_device_parent failed: %s", suintf->name);
+			printf("sysfs_get_device_parent failed: %s\n", suintf->name);
 			continue;
 		}
 
@@ -230,7 +234,7 @@ static int refresh_exported_devices(void)
 	dlist_for_each_data(sudev_list, sudev, struct sysfs_device) {
 		edev = usbip_exported_device_new(sudev->path);
 		if (!edev) {
-			dbg("usbip_exported_device_new failed");
+			printf("usbip_exported_device_new failed %s\n",sudev->path);
 			continue;
 		}
 
@@ -354,9 +358,9 @@ int usbip_host_refresh_device_list(void)
 	return 0;
 }
 
-int usbip_host_export_device(struct usbip_exported_device *edev, int sockfd)
+int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, int sockfd)
 {
-	char attr_name[] = "usbip_sockfd";
+	char attr_name[] = "match_port";
 	char attr_path[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
 	char sockfd_buff[30];
@@ -382,13 +386,57 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int sockfd)
 		 edev->udev.path, edev->udev.busid,
 		 edev->udev.bConfigurationValue, 0, attr_name);
 
+    printf("ROSHAN ATTR_PATH %s\n",attr_path);
 	attr = sysfs_open_attribute(attr_path);
 	if (!attr) {
 		dbg("sysfs_open_attribute failed: %s", attr_path);
 		return -1;
 	}
 
-	snprintf(sockfd_buff, sizeof(sockfd_buff), "%d\n", sockfd);
+	snprintf(sockfd_buff, sizeof(sockfd_buff), "add %d %d-%d\n", sockfd,edev->udev.busnum,portnum);
+	dbg("write: %s", sockfd_buff);
+
+	ret = sysfs_write_attribute(attr, sockfd_buff, strlen(sockfd_buff));
+	if (ret < 0) {
+		dbg("sysfs_write_attribute failed: sockfd %s to %s",
+		    sockfd_buff, attr_path);
+		goto err_write_sockfd;
+	}
+
+	dbg("connect: %s", edev->udev.busid);
+
+err_write_sockfd:
+	sysfs_close_attribute(attr);
+
+	return ret;
+}
+
+int usbip_host_unexport_device(struct usbip_exported_device *edev, int portnum, int sockfd)
+{
+	char attr_name[] = "match_port";
+	char attr_path[SYSFS_PATH_MAX];
+	struct sysfs_attribute *attr;
+	char sockfd_buff[30];
+	int ret;
+
+	if (edev->status == SDEV_ST_AVAILABLE) {
+		dbg("device already available: %s", edev->udev.busid);
+		return -1;
+	}
+
+	/* only the first interface is true */
+	snprintf(attr_path, sizeof(attr_path), "%s/%s:%d.%d/%s",
+		 edev->udev.path, edev->udev.busid,
+		 edev->udev.bConfigurationValue, 0, attr_name);
+
+    printf("ROSHAN ATTR_PATH %s\n",attr_path);
+	attr = sysfs_open_attribute(attr_path);
+	if (!attr) {
+		dbg("sysfs_open_attribute failed: %s", attr_path);
+		return -1;
+	}
+
+	snprintf(sockfd_buff, sizeof(sockfd_buff), "del %d %d-%d\n", sockfd,edev->udev.busnum,portnum);
 	dbg("write: %s", sockfd_buff);
 
 	ret = sysfs_write_attribute(attr, sockfd_buff, strlen(sockfd_buff));

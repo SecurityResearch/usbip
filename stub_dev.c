@@ -74,32 +74,21 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(usbip_status, S_IRUGO, show_status, NULL);
 
-/*
- * usbip_sockfd gets a socket descriptor of an established TCP connection that
- * is used to transfer usbip requests by kernel threads. -1 is a magic number
- * by which usbip connection is finished.
- */
-static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t add_sockfd(struct stub_device *sdev, int sockfd)
 {
-	struct stub_device *sdev = dev_get_drvdata(dev);
-	int sockfd = 0;
 	struct socket *socket;
-
 	if (!sdev) {
-		dev_err(dev, "sdev is null\n");
+		pr_err( "sdev is null\n");
 		return -ENODEV;
 	}
 
-	sscanf(buf, "%d", &sockfd);
-
 	if (sockfd != -1) {
-		dev_info(dev, "stub up\n");
+		pr_info( "stub up\n");
 
 		spin_lock(&sdev->ud.lock);
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
-			dev_err(dev, "not ready\n");
+			pr_err("not ready\n");
 			spin_unlock(&sdev->ud.lock);
 			return -EINVAL;
 		}
@@ -121,7 +110,7 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 		spin_unlock(&sdev->ud.lock);
 
 	} else {
-		dev_info(dev, "stub down\n");
+		pr_info( "stub down\n");
 
 		spin_lock(&sdev->ud.lock);
 		if (sdev->ud.status != SDEV_ST_USED) {
@@ -133,8 +122,24 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 		usbip_event_add(&sdev->ud, SDEV_EVENT_DOWN);
 	}
 
-	return count;
+	return 1;
+
 }
+/*
+ * usbip_sockfd gets a socket descriptor of an established TCP connection that
+ * is used to transfer usbip requests by kernel threads. -1 is a magic number
+ * by which usbip connection is finished.
+ */
+static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct stub_device *sdev = dev_get_drvdata(dev);
+	int sockfd = 0;
+	sscanf(buf, "%d", &sockfd);
+
+    return add_sockfd(sdev, sockfd);
+}
+
 static DEVICE_ATTR(usbip_sockfd, S_IWUSR, NULL, store_sockfd);
 
 static int stub_add_files(struct device *dev)
@@ -183,7 +188,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	if (ud->tcp_socket) {
 		dev_dbg(&sdev->udev->dev, "shutdown tcp_socket %p\n",
 			ud->tcp_socket);
-		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
+		//kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR); ROSHAN stop shutting down connection
 	}
 
 	/* 1. stop threads */
@@ -199,7 +204,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * not touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
-		sock_release(ud->tcp_socket);
+		//sock_release(ud->tcp_socket); ROSHAN stop releasing socket
 		ud->tcp_socket = NULL;
 	}
 
@@ -349,9 +354,14 @@ static int stub_probe(struct usb_interface *interface,
 	const char *udev_busid = dev_name(interface->dev.parent);
 	int err = 0;
 	struct bus_id_priv *busid_priv;
-
+    int sockfd;
 	dev_dbg(&interface->dev, "Enter\n");
-
+    
+    sockfd = usb_get_sockfd(udev);
+    if(sockfd < 0){
+        pr_info(" Not exported %s\n",udev_busid);
+        return -ENODEV;
+    }
 	/* check we should claim or not by busid_table */
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
@@ -435,7 +445,7 @@ static int stub_probe(struct usb_interface *interface,
 		return err;
 	}
 	busid_priv->status = STUB_BUSID_ALLOC;
-
+    add_sockfd(sdev,sockfd);
 	return 0;
 }
 

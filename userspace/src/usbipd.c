@@ -71,6 +71,10 @@ static void usbipd_help(void)
 	printf("%s\n", usbipd_help_string);
 }
 
+/*
+  ROSHAN
+  Changed to take bus id from the request object and port number separately.
+ */
 static int recv_request_import(int sockfd)
 {
 	struct op_import_request req;
@@ -108,7 +112,83 @@ static int recv_request_import(int sockfd)
 		usbip_net_set_nodelay(sockfd);
 
 		/* export device needs a TCP/IP socket descriptor */
-		rc = usbip_host_export_device(edev, sockfd);
+		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
+		rc = usbip_host_export_device(edev, portnum, sockfd);
+		if (rc < 0)
+			error = 1;
+	} else {
+		info("requested device not found: %s", req.busid);
+		error = 1;
+	}
+
+	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
+				      (!error ? ST_OK : ST_NA));
+	if (rc < 0) {
+		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
+		return -1;
+	}
+
+	if (error) {
+		dbg("import request busid %s: failed", req.busid);
+		return -1;
+	}
+
+	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
+	usbip_net_pack_usb_device(1, &pdu_udev);
+    snprintf(pdu_udev.busid,req.busid,SYSFS_BUS_ID_SIZE);
+	rc = usbip_net_send(sockfd, &pdu_udev, sizeof(pdu_udev));
+	if (rc < 0) {
+		dbg("usbip_net_send failed: devinfo");
+		return -1;
+        }
+
+	dbg("import request busid %s: complete", req.busid);
+
+	return 0;
+}
+
+/*
+  ROSHAN release port request
+ */
+static int recv_request_release(int sockfd)
+{
+	struct op_release_request req;
+	struct op_common reply;
+	struct usbip_exported_device *edev;
+	struct usbip_usb_device pdu_udev;
+	int found = 0;
+	int error = 0;
+	int rc;
+
+    unsigned int busnum,portnum;
+
+	memset(&req, 0, sizeof(req));
+	memset(&reply, 0, sizeof(reply));
+
+	rc = usbip_net_recv(sockfd, &req, sizeof(req));
+	if (rc < 0) {
+		dbg("usbip_net_recv failed: import request");
+		return -1;
+	}
+	PACK_OP_RELEASE_REQUEST(0, &req);
+    sscanf(req.busid,"%u-%u",&busnum,&portnum);
+	dlist_for_each_data(host_driver->edev_list, edev,
+			    struct usbip_exported_device) {
+		//if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
+        if(edev->udev.busnum == busnum){
+			info("found requested device: %s", req.busid);
+			found = 1;
+			break;
+		}
+	}
+
+	if (found) {
+		/* should set TCP_NODELAY for usbip */
+		usbip_net_set_nodelay(sockfd);
+
+		/* unexport device needs a TCP/IP socket descriptor */
+		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
+		rc = usbip_host_unexport_device(edev, portnum, sockfd);
 		if (rc < 0)
 			error = 1;
 	} else {
@@ -247,6 +327,9 @@ static int recv_pdu(int connfd)
 		break;
 	case OP_REQ_IMPORT:
 		ret = recv_request_import(connfd);
+		break;
+	case OP_REQ_RELEASE:
+		ret = recv_request_release(connfd);
 		break;
 	case OP_REQ_DEVINFO:
 	case OP_REQ_CRYPKEY:

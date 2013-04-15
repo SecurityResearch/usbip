@@ -129,6 +129,11 @@ extern struct device_attribute dev_attr_usbip_debug;
 #define USBIP_CMD_UNLINK	0x0002
 #define USBIP_RET_SUBMIT	0x0003
 #define USBIP_RET_UNLINK	0x0004
+#define USBIP_CMD_ATTACH    0x0005
+#define USBIP_RET_ATTACH    0x0006
+#define USBIP_CMD_DETACH    0x0007
+#define USBIP_RET_DETACH    0x0008
+
 
 #define USBIP_DIR_OUT	0x00
 #define USBIP_DIR_IN	0x01

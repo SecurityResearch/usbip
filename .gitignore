@@ -6,3 +6,6 @@ modules.*
 *.a
 *.log
 *.libs/*
+.libs/*
+.libs/
+.deps/

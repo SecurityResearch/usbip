@@ -146,7 +146,7 @@ void rh_port_connect(int rhport, enum usb_device_speed speed)
 
 	spin_unlock_irqrestore(&the_controller->lock, flags);
 
-	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
+	//usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));ROSHAN stopped informing the world about device. Later when server tells that the device is attached then do that
 }
 
 void rh_port_disconnect(int rhport)

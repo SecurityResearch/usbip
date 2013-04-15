@@ -244,6 +244,10 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	case USBIP_RET_UNLINK:
 		vhci_recv_ret_unlink(vdev, &pdu);
 		break;
+    case USBIP_CMD_ATTACH:
+        pr_info("Attached device received \n");
+        usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
+        break;
 	default:
 		/* NOT REACHED */
 		pr_err("unknown pdu %u\n", pdu.base.command);

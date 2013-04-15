@@ -65,7 +65,6 @@ struct op_devinfo_reply {
 #define OP_IMPORT	0x03
 #define OP_REQ_IMPORT	(OP_REQUEST | OP_IMPORT)
 #define OP_REP_IMPORT   (OP_REPLY   | OP_IMPORT)
-
 struct op_import_request {
 	char busid[SYSFS_BUS_ID_SIZE];
 } __attribute__((packed));
@@ -80,6 +79,63 @@ struct op_import_reply {
 
 #define PACK_OP_IMPORT_REPLY(pack, reply)  do {\
 	usbip_net_pack_usb_device(pack, &(reply)->udev);\
+} while (0)
+
+/* ---------------------------------------------------------------------- */
+/*ROSHAN Release a remote USB device. */
+#define OP_RELEASE	0x08
+#define OP_REQ_RELEASE	 (OP_REQUEST | OP_RELEASE)
+#define OP_REP_RELEASE   (OP_REPLY   | OP_RELEASE)
+struct op_release_request {
+	char busid[SYSFS_BUS_ID_SIZE];
+} __attribute__((packed));
+
+struct op_release_reply {
+//	struct usbip_usb_interface uinf[];
+} __attribute__((packed));
+
+#define PACK_OP_RELEASE_REQUEST(pack, request)  do {\
+} while (0)
+
+#define PACK_OP_RELEASE_REPLY(pack, reply)  do {\
+} while (0)
+
+/* ---------------------------------------------------------------------- */
+/*ROSHAN Attach a remote USB device. */
+#define OP_ATTACH	0x09
+#define OP_REQ_ATTACH	 (OP_REQUEST | OP_ATTACH)
+#define OP_REP_ATTACH    (OP_REPLY   | OP_ATTACH)
+struct op_attach_request {
+	char busid[SYSFS_BUS_ID_SIZE];
+} __attribute__((packed));
+
+struct op_attach_reply {
+//	struct usbip_usb_interface uinf[];
+} __attribute__((packed));
+
+#define PACK_OP_ATTACH_REQUEST(pack, request)  do {\
+} while (0)
+
+#define PACK_OP_ATTACH_REPLY(pack, reply)  do {\
+} while (0)
+
+/* ---------------------------------------------------------------------- */
+/*ROSHAN Detach a remote USB device. */
+#define OP_DETACH	0x0a
+#define OP_REQ_DETACH	 (OP_REQUEST | OP_DETACH)
+#define OP_REP_DETACH    (OP_REPLY   | OP_DETACH)
+struct op_detach_request {
+	char busid[SYSFS_BUS_ID_SIZE];
+} __attribute__((packed));
+
+struct op_detach_reply {
+//	struct usbip_usb_interface uinf[];
+} __attribute__((packed));
+
+#define PACK_OP_DETACH_REQUEST(pack, request)  do {\
+} while (0)
+
+#define PACK_OP_DETACH_REPLY(pack, reply)  do {\
 } while (0)
 
 /* ---------------------------------------------------------------------- */
