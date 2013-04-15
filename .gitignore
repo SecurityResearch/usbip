@@ -5,4 +5,5 @@ modules.*
 *~
 *.a
 *.log
-*.libs/*
+.libs/
+.deps/
