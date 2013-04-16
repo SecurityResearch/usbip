@@ -8,3 +8,4 @@ modules.*
 .libs/*
 .libs/
 .deps/
+*.cmd
