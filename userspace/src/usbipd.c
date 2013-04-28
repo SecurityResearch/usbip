@@ -135,7 +135,7 @@ static int recv_request_import(int sockfd)
 
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 	usbip_net_pack_usb_device(1, &pdu_udev);
-    snprintf(pdu_udev.busid,req.busid,SYSFS_BUS_ID_SIZE);
+    strncpy(pdu_udev.busid,req.busid,SYSFS_BUS_ID_SIZE);
 	rc = usbip_net_send(sockfd, &pdu_udev, sizeof(pdu_udev));
 	if (rc < 0) {
 		dbg("usbip_net_send failed: devinfo");
