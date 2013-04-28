@@ -8,5 +8,9 @@ modules.*
 .libs/*
 .libs/
 .deps/
-.cmd
-*
+*.cmd
+usbip
+usbipd
+Module*
+.tmp_versions/
+config.*

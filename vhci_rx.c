@@ -208,25 +208,26 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
 	if (ret < 0) {
 		if (ret == -ECONNRESET)
-			pr_info("connection reset by peer\n");
+			pr_info("ROSHAN_VHCI_RX connection reset by peer\n");
 		else if (ret == -EAGAIN) {
 			/* ignore if connection was idle */
+			pr_info("ROSHAN_VHCI_RX connection timed out with pending urbs\n");
 			if (vhci_priv_tx_empty(vdev))
 				return;
-			pr_info("connection timed out with pending urbs\n");
 		} else if (ret != -ERESTARTSYS)
-			pr_info("xmit failed %d\n", ret);
-
+			pr_info("ROSHAN_VHCI_RX xmit failed %d\n", ret);
+		else
+			pr_info("ROSHAN_VHCI_RX recv failed %d\n", ret);
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		return;
 	}
 	if (ret == 0) {
-		pr_info("connection closed");
+		pr_info("ROSHAN_VHCI_RX connection closed");
 		usbip_event_add(ud, VDEV_EVENT_DOWN);
 		return;
 	}
 	if (ret != sizeof(pdu)) {
-		pr_err("received pdu size is %d, should be %d\n", ret,
+		pr_err("ROSHAN_VHCI_RX received pdu size is %d, should be %d\n", ret,
 		       (unsigned int)sizeof(pdu));
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		return;
@@ -240,17 +241,24 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	switch (pdu.base.command) {
 	case USBIP_RET_SUBMIT:
 		vhci_recv_ret_submit(vdev, &pdu);
+        pr_info("ROSHAN_VHCI_RX ret URB received \n");
 		break;
 	case USBIP_RET_UNLINK:
+        pr_info("ROSHAN_VHCI_RX unlink URB received \n");
 		vhci_recv_ret_unlink(vdev, &pdu);
 		break;
-    case USBIP_CMD_ATTACH:
-        pr_info("Attached device received \n");
-        usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
-        break;
+	case USBIP_CMD_ATTACH:
+	  pr_info("ROSHAN_VHCI_RX Attached device received \n");
+	  usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
+	  break;
+	case USBIP_CMD_DETACH:
+	  pr_info("ROSHAN_VHCI_RX Detached device received \n");
+	  usbip_event_add(ud, VDEV_EVENT_DEV_REMOVED);
+
+	  break;
 	default:
-		/* NOT REACHED */
-		pr_err("unknown pdu %u\n", pdu.base.command);
+	  /* NOT REACHED */
+		pr_err("ROSHAN_VHCI_RX unknown pdu %u\n", pdu.base.command);
 		usbip_dump_header(&pdu);
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		break;

@@ -249,6 +249,11 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 }
 
+static void stub_device_remove(struct usbip_device *ud)
+{
+  //TODO
+}
+
 static void stub_device_reset(struct usbip_device *ud)
 {
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
@@ -333,9 +338,10 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 
 	init_waitqueue_head(&sdev->tx_waitq);
 
-	sdev->ud.eh_ops.shutdown = stub_shutdown_connection;
-	sdev->ud.eh_ops.reset    = stub_device_reset;
-	sdev->ud.eh_ops.unusable = stub_device_unusable;
+	sdev->ud.eh_ops.shutdown   = stub_shutdown_connection;
+	sdev->ud.eh_ops.reset      = stub_device_reset;
+	sdev->ud.eh_ops.remove_dev = stub_device_remove;
+	sdev->ud.eh_ops.unusable   = stub_device_unusable;
 
 	usbip_start_eh(&sdev->ud);
 
@@ -496,6 +502,17 @@ static void shutdown_busid(struct bus_id_priv *busid_priv)
 	}
 }
 
+static void remove_busid(struct bus_id_priv *busid_priv)
+{
+	if (busid_priv->sdev && !busid_priv->shutdown_busid) {
+		busid_priv->shutdown_busid = 1;
+		usbip_event_add(&busid_priv->sdev->ud, SDEV_EVENT_REMOVED);
+
+		/* 2. wait for the stop of the event handler */
+		usbip_stop_eh(&busid_priv->sdev->ud);
+	}
+}
+
 /*
  * called in usb_disconnect() or usb_deregister()
  * but only if actconfig(active configuration) exists
@@ -539,7 +556,7 @@ static void stub_disconnect(struct usb_interface *interface)
 
 	if (busid_priv->interf_count > 1) {
 		busid_priv->interf_count--;
-		shutdown_busid(busid_priv);
+		remove_busid(busid_priv);
 		usb_put_intf(interface);
 		return;
 	}
@@ -547,7 +564,7 @@ static void stub_disconnect(struct usb_interface *interface)
 	busid_priv->interf_count = 0;
 
 	/* 1. shutdown the current connection */
-	shutdown_busid(busid_priv);
+	remove_busid(busid_priv);
 
 	usb_put_dev(sdev->udev);
 	usb_put_intf(interface);
