@@ -389,7 +389,7 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, in
     printf("ROSHAN ATTR_PATH %s\n",attr_path);
 	attr = sysfs_open_attribute(attr_path);
 	if (!attr) {
-		dbg("sysfs_open_attribute failed: %s", attr_path);
+		err("sysfs_open_attribute failed: %s", attr_path);
 		return -1;
 	}
 
@@ -398,12 +398,12 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, in
 
 	ret = sysfs_write_attribute(attr, sockfd_buff, strlen(sockfd_buff));
 	if (ret < 0) {
-		dbg("sysfs_write_attribute failed: sockfd %s to %s",
+		err("sysfs_write_attribute failed: sockfd %s to %s",
 		    sockfd_buff, attr_path);
 		goto err_write_sockfd;
 	}
 
-	dbg("connect: %s", edev->udev.busid);
+	info("connect: %s", edev->udev.busid);
 
 err_write_sockfd:
 	sysfs_close_attribute(attr);

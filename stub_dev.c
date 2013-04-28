@@ -74,6 +74,52 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(usbip_status, S_IRUGO, show_status, NULL);
 
+static ssize_t add_socket(struct stub_device *sdev, struct socket *socket)
+{
+	if (!sdev) {
+		pr_err( "sdev is null\n");
+		return -ENODEV;
+	}
+
+	if (socket) {
+		pr_info( "stub up\n");
+
+		spin_lock(&sdev->ud.lock);
+
+		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
+			pr_err("not ready\n");
+			spin_unlock(&sdev->ud.lock);
+			return -EINVAL;
+		}
+		sdev->ud.tcp_socket = socket;
+
+
+		spin_unlock(&sdev->ud.lock);
+
+		spin_lock(&sdev->ud.lock);
+		sdev->ud.status = SDEV_ST_USED;
+		spin_unlock(&sdev->ud.lock);
+
+		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
+		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
+
+
+	} else {
+		pr_info( "stub down\n");
+
+		spin_lock(&sdev->ud.lock);
+		if (sdev->ud.status != SDEV_ST_USED) {
+			spin_unlock(&sdev->ud.lock);
+			return -EINVAL;
+		}
+		spin_unlock(&sdev->ud.lock);
+
+		usbip_event_add(&sdev->ud, SDEV_EVENT_DOWN);
+	}
+
+	return 1;
+
+}
 static ssize_t add_sockfd(struct stub_device *sdev, int sockfd)
 {
 	struct socket *socket;
@@ -94,36 +140,9 @@ static ssize_t add_sockfd(struct stub_device *sdev, int sockfd)
 		}
 
 		socket = sockfd_to_socket(sockfd);
-		if (!socket) {
-			spin_unlock(&sdev->ud.lock);
-			return -EINVAL;
-		}
-		sdev->ud.tcp_socket = socket;
-
-		spin_unlock(&sdev->ud.lock);
-
-		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
-		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
-
-		spin_lock(&sdev->ud.lock);
-		sdev->ud.status = SDEV_ST_USED;
-		spin_unlock(&sdev->ud.lock);
-
-	} else {
-		pr_info( "stub down\n");
-
-		spin_lock(&sdev->ud.lock);
-		if (sdev->ud.status != SDEV_ST_USED) {
-			spin_unlock(&sdev->ud.lock);
-			return -EINVAL;
-		}
-		spin_unlock(&sdev->ud.lock);
-
-		usbip_event_add(&sdev->ud, SDEV_EVENT_DOWN);
-	}
-
-	return 1;
-
+        return add_socket(sdev,socket);
+    }
+    return -ENODEV;
 }
 /*
  * usbip_sockfd gets a socket descriptor of an established TCP connection that
@@ -354,12 +373,13 @@ static int stub_probe(struct usb_interface *interface,
 	const char *udev_busid = dev_name(interface->dev.parent);
 	int err = 0;
 	struct bus_id_priv *busid_priv;
-    int sockfd;
+    struct socket *sock;
 	dev_dbg(&interface->dev, "Enter\n");
     
-    sockfd = usb_get_sockfd(udev);
-    if(sockfd < 0){
-        pr_info(" Not exported %s\n",udev_busid);
+    sock = usb_get_socket(udev);
+    pr_info("ROSHAN_HUB %p socket returned\n",sock);
+    if(sock == NULL){
+        pr_info("ROSHAN_HUB Not exported %s\n",udev_busid);
         return -ENODEV;
     }
 	/* check we should claim or not by busid_table */
@@ -445,7 +465,23 @@ static int stub_probe(struct usb_interface *interface,
 		return err;
 	}
 	busid_priv->status = STUB_BUSID_ALLOC;
-    add_sockfd(sdev,sockfd);
+    err = add_socket(sdev,sock);
+	if (err<0) {
+		dev_err(&interface->dev, "error adding socket %p for %s\n", sock, udev_busid);
+        stub_remove_files(&interface->dev);
+		usb_set_intfdata(interface, NULL);
+		usb_put_intf(interface);
+
+		busid_priv->interf_count = 0;
+		busid_priv->sdev = NULL;
+		stub_device_free(sdev);
+		return -ENODEV;
+	}
+    /*if(stub_send_cmd_attach(sdev) < 0){
+        pr_info("ROSHAN_HUB attach command not sent\n");
+        return 0;
+    }
+    pr_info("ROSHAN_HUB attach command sent\n");*/
 	return 0;
 }
 

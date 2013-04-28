@@ -24,7 +24,11 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <net/sock.h>
-
+//#include <linux/unistd.h>
+//#include <linux/stdlib.h>
+//#include <sys/types.h>
+//#include <stdio.h>
+#include <linux/sched.h>
 #include "usbip_common.h"
 
 #define DRIVER_AUTHOR "Takahiro Hirofuchi <hirofuchi@users.sourceforge.net>"
@@ -401,10 +405,18 @@ struct socket *sockfd_to_socket(unsigned int sockfd)
 	struct socket *socket;
 	struct file *file;
 	struct inode *inode;
+    pid_t pid;
+
+	/* get the process id */
+	if ((pid = task_pid_nr(current)) < 0) {
+        pr_err("unable to get pid");
+	} else {
+        pr_info("The process id is %d", pid);
+	}
 
 	file = fget(sockfd);
 	if (!file) {
-		pr_err("invalid sockfd\n");
+		pr_err("[%d] invalid sockfd %d\n",pid,sockfd);
 		return NULL;
 	}
 

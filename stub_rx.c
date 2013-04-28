@@ -307,14 +307,16 @@ static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 	struct usbip_device *ud = &sdev->ud;
 	int valid = 0;
 
-	if (pdu->base.devid == sdev->devid) {
+	//TODO fix it if (pdu->base.devid == sdev->devid) {
 		spin_lock(&ud->lock);
 		if (ud->status == SDEV_ST_USED) {
 			/* A request is valid. */
 			valid = 1;
 		}
 		spin_unlock(&ud->lock);
-	}
+        /*}else{
+        pr_err("Devid did not matched comm %d devid %d <> %d\n",pdu->base.command,pdu->base.devid, sdev->devid);
+        }*/
 
 	return valid;
 }

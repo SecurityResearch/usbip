@@ -419,8 +419,10 @@ int stub_tx_loop(void *data)
 	struct usbip_device *ud = data;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
     if(stub_send_cmd_attach(sdev) < 0){
+        pr_info("ROSHAN_HUB attach command not sent\n");
         return 0;
     }
+    pr_info("ROSHAN_HUB attach command sent\n");
 	while (!kthread_should_stop()) {
 		if (usbip_event_happened(ud))
 			break;
