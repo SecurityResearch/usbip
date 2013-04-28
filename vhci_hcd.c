@@ -122,7 +122,7 @@ void rh_port_connect(int rhport, enum usb_device_speed speed)
 {
 	unsigned long	flags;
 
-	pr_info("ROSHAN %s connecting to port %d at speed %d\n",rhport, speed);
+	pr_info("ROSHAN %s connecting to port %d at speed %d\n",__func__,rhport, speed);
 	usbip_dbg_vhci_rh("rh_port_connect %d\n", rhport);
 
 	spin_lock_irqsave(&the_controller->lock, flags);
@@ -864,6 +864,49 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 }
 
 
+/*
+ * The important thing is that only one context begins cleanup.
+ * This is why error handling and cleanup become simple.
+ * We do not want to consider race condition as possible.
+ */
+static void vhci_remove_device(struct usbip_device *ud)
+{
+	struct vhci_device *vdev = container_of(ud, struct vhci_device, ud);
+
+	vhci_device_unlink_cleanup(vdev);
+
+	/*
+	 * rh_port_disconnect() is a trigger of ...
+	 *   usb_disable_device():
+	 *	disable all the endpoints for a USB device.
+	 *   usb_disable_endpoint():
+	 *	disable endpoints. pending urbs are unlinked(dequeued).
+	 *
+	 * NOTE: After calling rh_port_disconnect(), the USB device drivers of a
+	 * deteched device should release used urbs in a cleanup function(i.e.
+	 * xxx_disconnect()). Therefore, vhci_hcd does not need to release
+	 * pushed urbs and their private data in this function.
+	 *
+	 * NOTE: vhci_dequeue() must be considered carefully. When shutdowning
+	 * a connection, vhci_shutdown_connection() expects vhci_dequeue()
+	 * gives back pushed urbs and frees their private data by request of
+	 * the cleanup function of a USB driver. When unlinking a urb with an
+	 * active connection, vhci_dequeue() does not give back the urb which
+	 * is actually given back by vhci_rx after receiving its return pdu.
+	 *
+	 */
+	rh_port_disconnect(vdev->rhport);
+
+	spin_lock(&ud->lock);
+	if (vdev->udev)
+		usb_put_dev(vdev->udev);
+	vdev->udev = NULL;
+	spin_unlock(&ud->lock);
+
+	pr_info("removed device\n");
+}
+
+
 static void vhci_device_reset(struct usbip_device *ud)
 {
 	struct vhci_device *vdev = container_of(ud, struct vhci_device, ud);
@@ -908,6 +951,7 @@ static void vhci_device_init(struct vhci_device *vdev)
 
 	vdev->ud.eh_ops.shutdown = vhci_shutdown_connection;
 	vdev->ud.eh_ops.reset = vhci_device_reset;
+	vdev->ud.eh_ops.remove_dev = vhci_remove_device;
 	vdev->ud.eh_ops.unusable = vhci_device_unusable;
 
 	usbip_start_eh(&vdev->ud);

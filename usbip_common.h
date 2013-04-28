@@ -261,17 +261,20 @@ enum usbip_status {
 #define USBIP_EH_BYE		(1 << 1)
 #define USBIP_EH_RESET		(1 << 2)
 #define USBIP_EH_UNUSABLE	(1 << 3)
+#define USBIP_EH_DEV_REMOVED    (1 << 4)
 
 #define SDEV_EVENT_REMOVED   (USBIP_EH_SHUTDOWN | USBIP_EH_RESET | USBIP_EH_BYE)
 #define	SDEV_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_SUBMIT	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
+#define	SDEV_EVENT_DEV_REMOVED	(USBIP_EH_DEV_REMOVED)
 
 #define	VDEV_EVENT_REMOVED	(USBIP_EH_SHUTDOWN | USBIP_EH_BYE)
 #define	VDEV_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	VDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	VDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
+#define	VDEV_EVENT_DEV_REMOVED	(USBIP_EH_DEV_REMOVED)
 
 /* a common structure for stub_device and vhci_device */
 struct usbip_device {
@@ -294,6 +297,7 @@ struct usbip_device {
 		void (*shutdown)(struct usbip_device *);
 		void (*reset)(struct usbip_device *);
 		void (*unusable)(struct usbip_device *);
+		void (*remove_dev)(struct usbip_device *);
 	} eh_ops;
 };
 

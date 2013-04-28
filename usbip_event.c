@@ -53,6 +53,12 @@ static int event_handler(struct usbip_device *ud)
 			ud->event &= ~USBIP_EH_UNUSABLE;
 		}
 
+		/* Mark the device as unusable. */
+		if (ud->event & USBIP_EH_DEV_REMOVED) {
+			ud->eh_ops.remove_dev(ud);
+			ud->event &= ~USBIP_EH_DEV_REMOVED;
+		}
+
 		/* Stop the error handler. */
 		if (ud->event & USBIP_EH_BYE)
 			return -1;

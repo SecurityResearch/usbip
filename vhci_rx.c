@@ -251,6 +251,11 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	  pr_info("ROSHAN_VHCI_RX Attached device received \n");
 	  usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
 	  break;
+	case USBIP_CMD_DETACH:
+	  pr_info("ROSHAN_VHCI_RX Detached device received \n");
+	  usbip_event_add(ud, VDEV_EVENT_DEV_REMOVED);
+
+	  break;
 	default:
 	  /* NOT REACHED */
 		pr_err("ROSHAN_VHCI_RX unknown pdu %u\n", pdu.base.command);

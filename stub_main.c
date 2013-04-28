@@ -65,7 +65,7 @@ static int get_busid_idx(const char *busid)
 	return idx;
 }
 
-static int add_match_busid(char *busid)
+static int add_match_busid(const char *busid)
 {
 	int i;
 	int ret = -1;
