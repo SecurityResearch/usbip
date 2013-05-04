@@ -249,7 +249,9 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 		break;
 	case USBIP_CMD_ATTACH:
 	  pr_info("ROSHAN_VHCI_RX Attached device received \n");
-	  usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
+	  //usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
+	  vdev->ud.status     = VDEV_ST_NOTASSIGNED;
+	  rh_port_connect(vdev->rhport, vdev->speed); 
 	  break;
 	case USBIP_CMD_DETACH:
 	  pr_info("ROSHAN_VHCI_RX Detached device received \n");
@@ -270,10 +272,14 @@ int vhci_rx_loop(void *data)
 	struct usbip_device *ud = data;
 
 	while (!kthread_should_stop()) {
-		if (usbip_event_happened(ud))
-			break;
+	  if (usbip_event_happened(ud)){
+	    if(!(ud->event & USBIP_EH_DEV_REMOVED)){
+	      break;
+	    }
+	    pr_info("ROSHAN_VHCI_RX device removed\n");
+	  }
 
-		vhci_rx_pdu(ud);
+	  vhci_rx_pdu(ud);
 	}
 
 	return 0;
