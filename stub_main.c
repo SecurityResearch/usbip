@@ -102,13 +102,13 @@ struct bus_id_priv *get_busid_priv(const char *busid)
 
 	spin_lock(&busid_table_lock);
 	idx = get_busid_idx(busid);
-    if(idx < 0){
+    /*if(idx < 0){
         spin_unlock(&busid_table_lock); 
         add_match_busid(busid);
         spin_lock(&busid_table_lock);
         idx = get_busid_idx(busid);
         
-    }
+        }*/
 
 	if (idx >= 0)
 		bid = &(busid_table[idx]);

@@ -43,6 +43,7 @@
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
 #include "usbip_network.h"
+#include "utils.h"
 
 #undef  PROGNAME
 #define PROGNAME "usbipd"
@@ -105,7 +106,17 @@ static int recv_request_import(int sockfd)
 			found = 1;
 			break;
 		}
+    }
+    if(!found){
+        info("Hub %d not found for busid %s\n",busnum,req.busid);
+        return -1;
+    }
+    rc = check_busid(req.busid);
+    if (rc < 0) {
+		dbg("usbip check_busid failed: import request");
+		return -1;
 	}
+    found = 1;
 
 	if (found) {
 		/* should set TCP_NODELAY for usbip */
@@ -113,14 +124,18 @@ static int recv_request_import(int sockfd)
 
 		/* export device needs a TCP/IP socket descriptor */
 		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
-		rc = usbip_host_export_device(edev, portnum, sockfd);
+		rc = usbip_host_export_device(edev, req.busid, sockfd);
 		if (rc < 0)
 			error = 1;
+        
 	} else {
 		info("requested device not found: %s", req.busid);
 		error = 1;
 	}
-
+    struct timeval tv;
+    
+    tv.tv_sec = 3;  /* 3 Secs Timeout */
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
 	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
 				      (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
@@ -188,7 +203,7 @@ static int recv_request_release(int sockfd)
 
 		/* unexport device needs a TCP/IP socket descriptor */
 		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
-		rc = usbip_host_unexport_device(edev, portnum, sockfd);
+		rc = usbip_host_unexport_device(edev, req.busid, sockfd);
 		if (rc < 0)
 			error = 1;
 	} else {

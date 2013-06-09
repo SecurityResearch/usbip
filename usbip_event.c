@@ -29,22 +29,27 @@ static int event_handler(struct usbip_device *ud)
 	/*
 	 * Events are handled by only this thread.
 	 */
+    pr_info("ROSHAN pending event %lx\n",ud->event);
 	while (usbip_event_happened(ud)) {
 		usbip_dbg_eh("pending event %lx\n", ud->event);
-
+        pr_info("ROSHAN pending event %lx\n",ud->event);
 		/*
 		 * NOTE: shutdown must come first.
 		 * Shutdown the device.
 		 */
 		if (ud->event & USBIP_EH_SHUTDOWN) {
+        pr_info("ROSHAN shutting down device %lx\n",ud->event);
 			ud->eh_ops.shutdown(ud);
 			ud->event &= ~USBIP_EH_SHUTDOWN;
+        pr_info("ROSHAN shut down device %lx\n",ud->event);
 		}
 
 		/* Reset the device. */
 		if (ud->event & USBIP_EH_RESET) {
+        pr_info("ROSHAN resetting device %lx\n",ud->event);
 			ud->eh_ops.reset(ud);
 			ud->event &= ~USBIP_EH_RESET;
+        pr_info("ROSHAN reset device %lx\n",ud->event);
 		}
 
 		/* Mark the device as unusable. */
@@ -60,8 +65,11 @@ static int event_handler(struct usbip_device *ud)
 		}
 
 		/* Stop the error handler. */
-		if (ud->event & USBIP_EH_BYE)
+		if (ud->event & USBIP_EH_BYE){
+            pr_info("ROSHAN stop eh %lx\n",ud->event);
+
 			return -1;
+        }
 	}
 
 	return 0;
@@ -72,10 +80,12 @@ static int event_handler_loop(void *data)
 	struct usbip_device *ud = data;
 
 	while (!kthread_should_stop()) {
+		pr_info("%s sleep\n",__func__);
 		wait_event_interruptible(ud->eh_waitq,
 					 usbip_event_happened(ud) ||
 					 kthread_should_stop());
 		usbip_dbg_eh("wakeup\n");
+		pr_info("%s wakeup\n",__func__);
 
 		if (event_handler(ud) < 0)
 			break;

@@ -180,6 +180,9 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 	size_t total_size = 0;
 
+    if(sdev->ud.tcp_socket==NULL){
+        return -1;
+    }
 	while ((priv = dequeue_from_priv_tx(sdev)) != NULL) {
 		int ret;
 		struct urb *urb = priv->urb;
@@ -332,6 +335,9 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 	size_t txsize;
 
 	size_t total_size = 0;
+    if(sdev->ud.tcp_socket==NULL){
+        return -1;
+    }
 
 	while ((unlink = dequeue_from_unlink_tx(sdev)) != NULL) {
 		int ret;
@@ -392,6 +398,9 @@ static int stub_send_cmd_attach(struct stub_device *sdev)
     int ret;
     struct usbip_header pdu_header;
     
+    if(sdev->ud.tcp_socket==NULL){
+        return -1;
+    }
     txsize = 0;
     memset(&pdu_header, 0, sizeof(pdu_header));
     memset(&msg, 0, sizeof(msg));
@@ -436,7 +445,10 @@ static int stub_send_cmd_detach(struct stub_device *sdev)
 
     int ret;
     struct usbip_header pdu_header;
-    
+     
+    if(sdev->ud.tcp_socket==NULL){
+        return -1;
+    }
     txsize = 0;
     memset(&pdu_header, 0, sizeof(pdu_header));
     memset(&msg, 0, sizeof(msg));
@@ -507,6 +519,10 @@ int stub_tx_loop(void *data)
 					  kthread_should_stop()));
 	}
 
-	stub_send_cmd_detach(sdev);
+	if(stub_send_cmd_detach(sdev)>=0){
+        pr_info("ROSHAN_HUB detach command sent\n");
+    }else{
+        pr_info("ROSHAN_HUB detach command not sent\n");
+    }        
 	return 0;
 }

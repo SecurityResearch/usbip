@@ -54,6 +54,13 @@ static int unbind_device(char *busid)
 	char *val = NULL;
 	int len;
 
+	/* notify driver of unbind */
+	rc = modify_match_busid(busid, 0);
+	if (rc < 0) {
+		err("unable to unbind device on %s", busid);
+		goto err_out;
+	}
+
 	/* verify the busid device is using usbip-host */
 	usbip_host_drv = sysfs_open_driver(bus_type, USBIP_HOST_DRV_NAME);
 	if (!usbip_host_drv) {
@@ -120,13 +127,6 @@ static int unbind_device(char *busid)
 	val = malloc(len);
 	*val = *busid_attr->value;
 	sysfs_close_attribute(busid_attr);
-
-	/* notify driver of unbind */
-	rc = modify_match_busid(busid, 0);
-	if (rc < 0) {
-		err("unable to unbind device on %s", busid);
-		goto err_out;
-	}
 
 	/* write the device attribute */
 	busid_attr = sysfs_open_attribute(busid_attr_path);

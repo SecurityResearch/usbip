@@ -20,6 +20,7 @@
 #define __UTILS_H
 
 int modify_match_busid(char *busid, int add);
+int check_busid(char *busid);
 
 #endif /* __UTILS_H */
 

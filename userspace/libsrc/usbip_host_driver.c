@@ -358,13 +358,20 @@ int usbip_host_refresh_device_list(void)
 	return 0;
 }
 
-int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, int sockfd)
+int usbip_host_export_device(struct usbip_exported_device *edev, char *busid, int sockfd)
 {
-	char attr_name[] = "match_port";
+	char attr_name[2][15] = {"match_port","usbip_sockfd"};
 	char attr_path[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
 	char sockfd_buff[30];
 	int ret;
+    unsigned int busnum,portnum;
+    char *bus_type = "usb";
+    struct sysfs_device *busid_dev;
+    //struct sysfs_attribute *bind_attr;
+    struct sysfs_attribute *bConfValue;
+    //struct sysfs_attribute *bNumIntfs;
+    sscanf(busid,"%u-%u",&busnum,&portnum);
 
 	if (edev->status != SDEV_ST_AVAILABLE) {
 		dbg("device not available: %s", edev->udev.busid);
@@ -384,7 +391,7 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, in
 	/* only the first interface is true */
 	snprintf(attr_path, sizeof(attr_path), "%s/%s:%d.%d/%s",
 		 edev->udev.path, edev->udev.busid,
-		 edev->udev.bConfigurationValue, 0, attr_name);
+		 edev->udev.bConfigurationValue, 0, attr_name[0]);
 
     printf("ROSHAN ATTR_PATH %s\n",attr_path);
 	attr = sysfs_open_attribute(attr_path);
@@ -400,6 +407,37 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, in
 	if (ret < 0) {
 		err("sysfs_write_attribute failed: sockfd %s to %s",
 		    sockfd_buff, attr_path);
+	}
+
+	sysfs_close_attribute(attr);
+    /* If device is present, start tx/rx thread */
+
+	/* only the first interface is true */
+    busid_dev = sysfs_open_device(bus_type, busid);
+    if (!busid_dev) {
+        dbg("sysfs_open_device %s failed: %s", busid, strerror(errno));
+        return ret;// Nothing to do
+    }
+    bConfValue = sysfs_get_device_attr(busid_dev, "bConfigurationValue");
+	snprintf(attr_path, sizeof(attr_path), "%s/%s:%d.%d/%s",
+		 busid_dev->path, busid,
+             atoi(bConfValue->value), 0, attr_name[1]);
+
+    printf("ROSHAN ATTR_PATH 2 %s\n",attr_path);
+	attr = sysfs_open_attribute(attr_path);
+	if (!attr) {
+		err("sysfs_open_attribute failed: %s", attr_path);
+		ret = -1;
+        goto err_open_attr;
+	}
+
+	snprintf(sockfd_buff, sizeof(sockfd_buff), "%d\n", sockfd);
+	dbg("write: %s", sockfd_buff);
+
+	ret = sysfs_write_attribute(attr, sockfd_buff, strlen(sockfd_buff));
+	if (ret < 0) {
+		err("sysfs_write_attribute failed: sockfd %s to %s",
+		    sockfd_buff, attr_path);
 		goto err_write_sockfd;
 	}
 
@@ -407,17 +445,21 @@ int usbip_host_export_device(struct usbip_exported_device *edev, int portnum, in
 
 err_write_sockfd:
 	sysfs_close_attribute(attr);
-
+ err_open_attr:
+    sysfs_close_device(busid_dev);
 	return ret;
 }
 
-int usbip_host_unexport_device(struct usbip_exported_device *edev, int portnum, int sockfd)
+int usbip_host_unexport_device(struct usbip_exported_device *edev, char *busid, int sockfd)
 {
 	char attr_name[] = "match_port";
 	char attr_path[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
 	char sockfd_buff[30];
 	int ret;
+    unsigned int busnum,portnum;
+    //char *bus_type = "usb";
+    sscanf(busid,"%u-%u",&busnum,&portnum);
 
 	if (edev->status == SDEV_ST_AVAILABLE) {
 		dbg("device already available: %s", edev->udev.busid);
