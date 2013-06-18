@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "usbip_common.h"
+#include "usbip_host_driver.h"
 #include "utils.h"
 
 int modify_match_busid(char *busid, int add)
@@ -71,6 +72,81 @@ int modify_match_busid(char *busid, int add)
 	}
 
 	sysfs_close_attribute(match_busid_attr);
+
+	return ret;
+}
+
+int modify_hub_port(char *busid, enum usb_port_status status)
+{
+	char bus_type[] = "usb";
+	char attr_name[] = "manage_port";
+	char buff[SYSFS_BUS_ID_SIZE + 4];
+    char hub_busid[SYSFS_BUS_ID_SIZE];
+	//char sysfs_mntpath[SYSFS_PATH_MAX];
+	//char match_busid_attr_path[SYSFS_PATH_MAX];
+	char attr_path[SYSFS_PATH_MAX];
+	struct sysfs_attribute *manage_port_attr, *bConfValue;
+    struct sysfs_device *hub_dev;
+    unsigned int busnum,portnum;
+	int rc, ret = 0;
+    char action[][10]={"enable","disable","remote","local"};
+    sscanf(busid,"%u-%u",&busnum,&portnum);
+    sprintf(hub_busid,"usb%u",busnum);
+	hub_dev = sysfs_open_device(bus_type, hub_busid);
+	if (!hub_dev) {
+		dbg("sysfs_open_device %s failed: %s", hub_busid, strerror(errno));
+		return -1;
+	}
+
+	bConfValue = sysfs_get_device_attr(hub_dev, "bConfigurationValue");
+    
+	if (strnlen(busid, SYSFS_BUS_ID_SIZE) > SYSFS_BUS_ID_SIZE - 1) {
+		dbg("busid is too long");
+		return -1;
+	}
+
+	snprintf(attr_path, sizeof(attr_path), "%s/%d-0:%d.%d/%s",
+             hub_dev->path, busnum, atoi(bConfValue->value), 0, attr_name);
+
+    printf("ROSHAN ATTR_PATH %s\n",attr_path);
+
+	manage_port_attr = sysfs_open_attribute(attr_path);
+	if (!manage_port_attr) {
+		dbg("problem getting manage_port attribute: %s",
+		    strerror(errno));
+		return -1;
+	}
+
+    switch(status){
+	case USB_PORT_ENABLE:
+        snprintf(buff, SYSFS_BUS_ID_SIZE + 4, "ena 2 %s", busid);
+        break;
+	case USB_PORT_DISABLE:
+        snprintf(buff, SYSFS_BUS_ID_SIZE + 4, "dis 2 %s", busid);
+        break;
+	case USB_PORT_REMOTE:
+        snprintf(buff, SYSFS_BUS_ID_SIZE + 4, "Xed 2 %s", busid);
+        break;
+	case USB_PORT_LOCAL:
+        modify_match_busid(busid, 0);
+		snprintf(buff, SYSFS_BUS_ID_SIZE + 4, "unX 2 %s", busid);
+        break;
+    default:
+        printf("Not correct status %d\n",status);
+        ret=-1;
+        goto done;
+    }
+	dbg("write \"%s\" to %s", buff, manage_port_attr->path);
+
+    printf("Marking busid %s %s\n",busid,action[status]);
+	rc = sysfs_write_attribute(manage_port_attr, buff, sizeof(buff));
+	if (rc < 0) {
+		printf("failed to write match_busid: %s", strerror(errno));
+		ret = -1;
+	}
+
+ done:
+	sysfs_close_attribute(manage_port_attr);
 
 	return ret;
 }

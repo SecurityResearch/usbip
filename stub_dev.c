@@ -138,6 +138,7 @@ static ssize_t add_sockfd(struct stub_device *sdev, int sockfd)
 			spin_unlock(&sdev->ud.lock);
 			return -EINVAL;
 		}
+        spin_unlock(&sdev->ud.lock);
 
 		socket = sockfd_to_socket(sockfd);
         return add_socket(sdev,socket);
@@ -389,8 +390,18 @@ static int stub_probe(struct usb_interface *interface,
 	int err = 0;
 	struct bus_id_priv *busid_priv;
     struct socket *sock;
+    enum usb_hub_port_status port_status;
 	dev_dbg(&interface->dev, "Enter\n");
     
+    port_status = usb_get_port_status(udev);
+    if(port_status != USB_PORT_REMOTED){
+        dev_info(&interface->dev, "%s is not exportable... "
+			 "skip!\n", udev_busid);
+		return -ENODEV;
+    }else{
+        dev_info(&interface->dev, "%s is  exportable... "
+			 , udev_busid);
+    }
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {

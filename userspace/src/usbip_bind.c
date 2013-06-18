@@ -217,13 +217,16 @@ static int bind_device(char *busid)
 {
 	int rc;
 
-	rc = modify_match_busid(busid, 1);
+	//rc = modify_match_busid(busid, 1);
+	rc = modify_hub_port(busid, USB_PORT_REMOTE);
 	if (rc < 0) {
 		err("unable to bind device on %s", busid);
 		return -1;
 	}
     
     printf("marked exportable on busid %s: complete\n", busid);
+
+    return 0;
 
 	rc = unbind_other(busid);
 	if (rc == UNBIND_ST_FAILED) {

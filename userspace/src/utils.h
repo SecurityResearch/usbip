@@ -18,8 +18,10 @@
 
 #ifndef __UTILS_H
 #define __UTILS_H
+#include "usbip.h"
 
 int modify_match_busid(char *busid, int add);
+int modify_hub_port(char *busid, enum usb_port_status status);
 int check_busid(char *busid);
 
 #endif /* __UTILS_H */

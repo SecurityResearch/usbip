@@ -55,12 +55,16 @@ static int unbind_device(char *busid)
 	int len;
 
 	/* notify driver of unbind */
-	rc = modify_match_busid(busid, 0);
+	//rc = modify_match_busid(busid, 0);
+	rc = modify_hub_port(busid, USB_PORT_LOCAL);
 	if (rc < 0) {
 		err("unable to unbind device on %s", busid);
-		goto err_out;
+		return -1;
 	}
 
+    printf("marked not exportable on busid %s: complete\n", busid);
+
+    return 0;
 	/* verify the busid device is using usbip-host */
 	usbip_host_drv = sysfs_open_driver(bus_type, USBIP_HOST_DRV_NAME);
 	if (!usbip_host_drv) {

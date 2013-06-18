@@ -111,11 +111,11 @@ static int recv_request_import(int sockfd)
         info("Hub %d not found for busid %s\n",busnum,req.busid);
         return -1;
     }
-    rc = check_busid(req.busid);
+    /*rc = check_busid(req.busid);
     if (rc < 0) {
 		dbg("usbip check_busid failed: import request");
 		return -1;
-	}
+        }*/
     found = 1;
 
 	if (found) {
@@ -325,13 +325,13 @@ static int recv_pdu(int connfd)
 
 	ret = usbip_net_recv_op_common(connfd, &code);
 	if (ret < 0) {
-		dbg("could not receive opcode: %#0x", code);
+		info("could not receive opcode: %#0x", code);
 		return -1;
 	}
 
 	ret = usbip_host_refresh_device_list();
 	if (ret < 0) {
-		dbg("could not refresh device list: %d", ret);
+		info("could not refresh device list: %d", ret);
 		return -1;
 	}
 
