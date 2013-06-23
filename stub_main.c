@@ -104,6 +104,7 @@ struct bus_id_priv *get_busid_priv(const char *busid)
 	idx = get_busid_idx(busid);
     if(idx < 0){
         spin_unlock(&busid_table_lock); 
+        pr_info("Adding busid %s\n",busid);
         add_match_busid(busid);
         spin_lock(&busid_table_lock);
         idx = get_busid_idx(busid);

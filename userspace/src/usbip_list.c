@@ -180,9 +180,72 @@ static int is_device(void *x)
 	return ret;
 }
 
+static int is_hub(void *x)
+{
+	struct sysfs_attribute *devClass;
+	struct sysfs_device *dev = x;
+	int ret = 0;
+
+	devClass = sysfs_get_device_attr(dev, "bDeviceClass");
+	if (devClass && atoi(devClass->value) == 9)
+		ret = 1;
+
+	return ret;
+}
+
 static int devcmp(void *a, void *b)
 {
 	return strcmp(a, b);
+}
+
+static int list_ports()
+{
+	char bus_type[] = "usb";
+	struct sysfs_bus *ubus;
+	struct sysfs_device *dev;
+	struct sysfs_attribute *maxchild;
+	struct dlist *devlist;
+	int i;
+	int ret = -1;
+
+	ubus = sysfs_open_bus(bus_type);
+	if (!ubus) {
+		err("could not open %s bus: %s", bus_type, strerror(errno));
+		return -1;
+	}
+
+	devlist = sysfs_get_bus_devices(ubus);
+	if (!devlist) {
+		err("could not get %s bus devices: %s", bus_type,
+		    strerror(errno));
+		goto err_out;
+	}
+
+	/* only root hubs */
+	dlist_filter_sort(devlist, is_hub, devcmp);
+
+	dlist_for_each_data(devlist, dev, struct sysfs_device) {
+		maxchild   = sysfs_get_device_attr(dev, "maxchild");
+		if (!maxchild) {
+			err("problem getting device attributes: %s",
+			    strerror(errno));
+			goto err_out;
+		}
+
+		printf("- Hub %s: ",dev->bus_id);
+		for (i = 1; i <= atoi(maxchild->value); i++) {
+			printf("%d ",i);
+		}
+		printf("\n");
+	}
+
+	ret = 0;
+
+err_out:
+	sysfs_close_bus(ubus);
+
+	return ret;
+
 }
 
 static int list_devices(bool parsable)
@@ -287,6 +350,7 @@ int usbip_list(int argc, char *argv[])
 			ret = list_exported_devices(optarg);
 			goto out;
 		case 'l':
+            ret = list_ports();
 			ret = list_devices(parsable);
 			goto out;
 		default:

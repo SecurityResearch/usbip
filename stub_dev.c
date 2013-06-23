@@ -138,6 +138,7 @@ static ssize_t add_sockfd(struct stub_device *sdev, int sockfd)
 			spin_unlock(&sdev->ud.lock);
 			return -EINVAL;
 		}
+        spin_unlock(&sdev->ud.lock);
 
 		socket = sockfd_to_socket(sockfd);
         return add_socket(sdev,socket);
@@ -204,6 +205,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * sk_wait_data returned though stub_rx thread was already finished by
 	 * step 1?
 	 */
+    sdev->ud.tcp_socket = usb_get_socket(sdev->udev);
 	if (ud->tcp_socket) {
 		dev_dbg(&sdev->udev->dev, "shutdown tcp_socket %p\n",
 			ud->tcp_socket);
@@ -211,10 +213,14 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* 1. stop threads */
-	if (ud->tcp_rx)
+	if (ud->tcp_rx){
+        pr_info("ROSHAN stopping rx thread\n");
 		kthread_stop_put(ud->tcp_rx);
-	if (ud->tcp_tx)
+    }
+	if (ud->tcp_tx){
+        pr_info("ROSHAN stopping tx thread\n");
 		kthread_stop_put(ud->tcp_tx);
+    }
 
 	/*
 	 * 2. close the socket
@@ -228,6 +234,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* 3. free used data */
+        pr_info("ROSHAN cleaning urbs\n");
 	stub_device_cleanup_urbs(sdev);
 
 	/* 4. free stub_unlink */
@@ -249,9 +256,12 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 }
 
-static void stub_device_remove(struct usbip_device *ud)
+static void stub_device_unregister(struct usbip_device *ud)
 {
-  //TODO
+    struct stub_device *sdev = container_of(ud, struct stub_device, ud);
+	struct usb_device *udev = sdev->udev;
+    usb_reset_socket(sdev->udev);
+
 }
 
 static void stub_device_reset(struct usbip_device *ud)
@@ -340,7 +350,7 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 
 	sdev->ud.eh_ops.shutdown   = stub_shutdown_connection;
 	sdev->ud.eh_ops.reset      = stub_device_reset;
-	sdev->ud.eh_ops.remove_dev = stub_device_remove;
+	sdev->ud.eh_ops.remove_dev = stub_device_unregister;
 	sdev->ud.eh_ops.unusable   = stub_device_unusable;
 
 	usbip_start_eh(&sdev->ud);
@@ -380,15 +390,18 @@ static int stub_probe(struct usb_interface *interface,
 	int err = 0;
 	struct bus_id_priv *busid_priv;
     struct socket *sock;
+    enum usb_hub_port_status port_status;
 	dev_dbg(&interface->dev, "Enter\n");
     
-    sock = usb_get_socket(udev);
-    pr_info("ROSHAN_HUB %p socket returned\n",sock);
-    if(sock == NULL){
-        pr_info("ROSHAN_HUB Not exported %s\n",udev_busid);
-        return -ENODEV;
+    port_status = usb_get_port_status(udev);
+    if(port_status != USB_PORT_REMOTED){
+        dev_info(&interface->dev, "%s is not exportable... "
+			 "skip!\n", udev_busid);
+		return -ENODEV;
+    }else{
+        dev_info(&interface->dev, "%s is  exportable... "
+			 , udev_busid);
     }
-	/* check we should claim or not by busid_table */
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {
@@ -403,6 +416,7 @@ static int stub_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
+	/* check we should claim or not by busid_table */
 	if (udev->descriptor.bDeviceClass == USB_CLASS_HUB) {
 		dev_dbg(&udev->dev, "%s is a usb hub device... skip!\n",
 			 udev_busid);
@@ -471,7 +485,14 @@ static int stub_probe(struct usb_interface *interface,
 		return err;
 	}
 	busid_priv->status = STUB_BUSID_ALLOC;
-    err = add_socket(sdev,sock);
+    sock = usb_get_socket(udev);
+    pr_info("ROSHAN_HUB %p socket returned\n",sock);
+    if(sock == NULL){
+        pr_info("ROSHAN_HUB Not registered %s\n",udev_busid);
+    }else{
+        err = add_socket(sdev,sock);
+    }
+
 	if (err<0) {
 		dev_err(&interface->dev, "error adding socket %p for %s\n", sock, udev_busid);
         stub_remove_files(&interface->dev);

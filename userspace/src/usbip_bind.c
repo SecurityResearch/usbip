@@ -217,6 +217,17 @@ static int bind_device(char *busid)
 {
 	int rc;
 
+	//rc = modify_match_busid(busid, 1);
+	rc = modify_hub_port(busid, USB_PORT_REMOTE);
+	if (rc < 0) {
+		err("unable to bind device on %s", busid);
+		return -1;
+	}
+    
+    printf("marked exportable on busid %s: complete\n", busid);
+
+    return 0;
+
 	rc = unbind_other(busid);
 	if (rc == UNBIND_ST_FAILED) {
 		err("could not unbind driver from device on busid %s", busid);
@@ -224,12 +235,6 @@ static int bind_device(char *busid)
 	} else if (rc == UNBIND_ST_USBIP_HOST) {
 		err("device on busid %s is already bound to %s", busid,
 		    USBIP_HOST_DRV_NAME);
-		return -1;
-	}
-
-	rc = modify_match_busid(busid, 1);
-	if (rc < 0) {
-		err("unable to bind device on %s", busid);
 		return -1;
 	}
 

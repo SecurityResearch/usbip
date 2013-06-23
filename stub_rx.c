@@ -559,8 +559,10 @@ static void stub_rx_pdu(struct usbip_device *ud)
 	/* 1. receive a pdu header */
 	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
 	if (ret != sizeof(pdu)) {
-		dev_err(dev, "recv a header, %d\n", ret);
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
+		dev_dbg(dev, "recv a header, %d\n", ret);
+        if(ret != 0){
+            usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
+        }
 		return;
 	}
 
@@ -582,6 +584,13 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 	case USBIP_CMD_SUBMIT:
 		stub_recv_cmd_submit(sdev, &pdu);
+		break;
+
+	case USBIP_CMD_DETACH:
+		//usbip_event_add(ud, SDEV_EVENT_REMOVED);
+        pr_info("ROSHAN received detach device\n");
+        //usb_reset_socket(sdev->udev);
+		usbip_event_add(ud, SDEV_EVENT_DETACHED);
 		break;
 
 	default:

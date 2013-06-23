@@ -93,6 +93,18 @@ static const struct command cmds[] = {
 		.usage = usbip_unbind_usage
 	},
 	{
+		.name  = "enable",
+		.fn    = usbip_enable,
+		.help  = "Enable a disabled busid ",
+		.usage = usbip_enable_usage
+		},
+	{
+		.name  = "disable",
+		.fn    = usbip_disable,
+		.help  = "Disable a busid ",
+		.usage = usbip_disable_usage
+		},
+	{
 		.name  = "port",
 		.fn    = usbip_port,
 		.help  = "List imported devices ",

@@ -6,6 +6,7 @@ sbin_PROGRAMS := usbip usbipd
 
 usbip_SOURCES := usbip.c utils.c usbip_network.c \
 		 usbip_attach.c usbip_detach.c usbip_list.c \
-		 usbip_bind.c usbip_unbind.c usbip_port.c
+		 usbip_bind.c usbip_unbind.c usbip_port.c \
+		 usbip_enable.c usbip_disable.c
 
 usbipd_SOURCES := usbipd.c usbip_network.c

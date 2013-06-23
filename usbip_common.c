@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <net/sock.h>
+#include <linux/kthread.h>
+#include <linux/errno.h>
 //#include <linux/unistd.h>
 //#include <linux/stdlib.h>
 //#include <sys/types.h>
@@ -370,7 +372,16 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
+		//result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_DONTWAIT);
 		if (result <= 0) {
+            if(result == -EAGAIN || result == -EWOULDBLOCK){
+                pr_info("ROSHAN recv timeout\n");
+                if(!kthread_should_stop()){
+                    continue;
+                }
+                pr_info("ROSHAN Thread stopped\n");
+                result = 0;
+            }
 			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
 				 sock, buf, size, result, total);
 			goto err;
