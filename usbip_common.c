@@ -334,7 +334,7 @@ void usbip_dump_header(struct usbip_header *pdu)
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		pr_err("unknown command %d\n",pdu->base.command);
 		break;
 	}
 }
@@ -513,7 +513,7 @@ void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		pr_err("%s unknown command %d\n",__func__,cmd);
 		break;
 	}
 }
@@ -619,7 +619,7 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		pr_err("%s unknown command %d\n",__func__,cmd);
 		break;
 	}
 }

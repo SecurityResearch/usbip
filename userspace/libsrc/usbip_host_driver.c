@@ -474,10 +474,10 @@ int usbip_host_unexport_device(struct usbip_exported_device *edev, char *busid, 
     //char *bus_type = "usb";
     sscanf(busid,"%u-%u",&busnum,&portnum);
 
-	if (edev->status == SDEV_ST_AVAILABLE) {
-		dbg("device already available: %s", edev->udev.busid);
+	/*if (edev->status == SDEV_ST_AVAILABLE) {
+		info("device already available: %s", edev->udev.busid);
 		return -1;
-	}
+        }*/
 
 	/* only the first interface is true */
 	snprintf(attr_path, sizeof(attr_path), "%s/%s:%d.%d/%s",

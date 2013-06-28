@@ -203,6 +203,8 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		iov = kzalloc(iovnum * sizeof(struct kvec), GFP_KERNEL);
 
 		if (!iov) {
+            dev_err(&sdev->interface->dev, "alloc stub_ret submit\n");
+
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
 			return -1;
 		}
@@ -268,6 +270,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 			iso_buffer = usbip_alloc_iso_desc_pdu(urb, &len);
 			if (!iso_buffer) {
+                dev_err(&sdev->interface->dev, "alloc stub_pipe\n");
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_MALLOC);
 				kfree(iov);
@@ -490,8 +493,10 @@ int stub_tx_loop(void *data)
     }
     pr_info("ROSHAN_HUB attach command sent\n");
 	while (!kthread_should_stop()) {
-		if (usbip_event_happened(ud))
+		if (usbip_event_happened(ud)){
+            pr_err("ROSHAN_STUB event happened\n");
 			break;
+        }
 
 		/*
 		 * send_ret_submit comes earlier than send_ret_unlink.  stub_rx
@@ -507,11 +512,15 @@ int stub_tx_loop(void *data)
 		 * getting the status of the given-backed URB which has the
 		 * status of usb_submit_urb().
 		 */
-		if (stub_send_ret_submit(sdev) < 0)
+		if (stub_send_ret_submit(sdev) < 0){
+            pr_err("ROSHAN_STUB error in sending ret submit\n");
 			break;
+        }
 
-		if (stub_send_ret_unlink(sdev) < 0)
+		if (stub_send_ret_unlink(sdev) < 0){
+            pr_err("ROSHAN_STUB error in sending resp to unlink\n");
 			break;
+        }
 
 		wait_event_interruptible(sdev->tx_waitq,
 					 (!list_empty(&sdev->priv_tx) ||
@@ -519,6 +528,7 @@ int stub_tx_loop(void *data)
 					  kthread_should_stop()));
 	}
 
+    pr_info("ROSHAN_STUB thread stopped\n");
 	if(stub_send_cmd_detach(sdev)>=0){
         pr_info("ROSHAN_HUB detach command sent\n");
     }else{

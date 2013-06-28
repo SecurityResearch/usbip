@@ -140,3 +140,11 @@ int usbip_event_happened(struct usbip_device *ud)
 	return happened;
 }
 EXPORT_SYMBOL_GPL(usbip_event_happened);
+
+void usbip_reset_events(struct usbip_device *ud)
+{
+	spin_lock(&ud->lock);
+	ud->event = 0;
+	spin_unlock(&ud->lock);
+}
+EXPORT_SYMBOL_GPL(usbip_reset_events);
