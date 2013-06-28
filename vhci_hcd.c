@@ -815,17 +815,17 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 {
 	struct vhci_device *vdev = container_of(ud, struct vhci_device, ud);
 
+	/* kill threads related to this sdev, if v.c. exists */
+	if (vdev->ud.tcp_tx)
+		kthread_stop_put(vdev->ud.tcp_tx);
+
 	/* need this? see stub_dev.c */
 	if (ud->tcp_socket) {
 		pr_debug("shutdown tcp_socket %p\n", ud->tcp_socket);
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
-
-	/* kill threads related to this sdev, if v.c. exists */
 	if (vdev->ud.tcp_rx)
 		kthread_stop_put(vdev->ud.tcp_rx);
-	if (vdev->ud.tcp_tx)
-		kthread_stop_put(vdev->ud.tcp_tx);
 
 	pr_info("stop threads\n");
 
