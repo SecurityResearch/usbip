@@ -18,6 +18,8 @@
 
 #include <sysfs/libsysfs.h>
 
+#include <limits.h>
+
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -42,11 +44,95 @@ void usbip_detach_usage(void)
 	printf("usage: %s", usbip_detach_usage_string);
 }
 
+int get_imported_dev_addr(int rhport,char *host,char *busid)
+{
+  FILE *file;
+  char path[PATH_MAX+1];
+  char port[20];
+  int ret=0;
+  snprintf(path, PATH_MAX, "%s/port%d",VHCI_STATE_PATH, rhport);
+  
+  file = fopen(path, "r");
+  if (!file) {
+    err("fopen");
+    return -1;
+  }
+  
+  ret = fscanf(file, "%s %s %s\n", host, port, busid);
+  
+  fclose(file);
+  
+  return ret;
+  
+}
+
+static int release_busid(char *host,char *busid)
+{
+  int rc = 0;
+  struct op_import_request request;
+  struct op_import_reply   reply;
+  uint16_t code = OP_REP_RELEASE;
+  int sockfd;
+
+  info("Releasing port %s at host %s\n", busid, host);
+  sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+  if (sockfd < 0) {
+    err("tcp connect");
+    return -1;
+  }
+
+  memset(&request, 0, sizeof(request));
+  memset(&reply, 0, sizeof(reply));
+
+  /* send a request */
+  rc = usbip_net_send_op_common(sockfd, OP_REQ_RELEASE, 0);
+  if (rc < 0) {
+    err("send op_common");
+    return -1;
+  }
+
+  strncpy(request.busid, busid, SYSFS_BUS_ID_SIZE-1);
+
+  PACK_OP_IMPORT_REQUEST(0, &request);
+
+  rc = usbip_net_send(sockfd, (void *) &request, sizeof(request));
+  if (rc < 0) {
+    err("send op_import_request");
+    return -1;
+  }
+
+  /* recieve a reply */
+  rc = usbip_net_recv_op_common(sockfd, &code);
+  if (rc < 0) {
+    err("recv op_common");
+    return -1;
+  }
+
+  rc = usbip_net_recv(sockfd, (void *) &reply, sizeof(reply));
+  if (rc < 0) {
+    err("recv op_import_reply");
+    return -1;
+  }
+
+  PACK_OP_IMPORT_REPLY(0, &reply);
+
+  /* check the reply */
+  if (strncmp(reply.udev.busid, busid, SYSFS_BUS_ID_SIZE)) {
+    err("recv different busid %s", reply.udev.busid);
+    return -1;
+  }
+
+  info("Releasing port %s at host %s\n", busid, host);
+  
+  return rc;
+}
+
 static int detach_port(char *port)
 {
 	int ret;
 	uint8_t portnum;
-
+	char busid[SYSFS_BUS_ID_SIZE];
+	char host[20];
 	for (unsigned int i=0; i < strlen(port); i++)
 		if (!isdigit(port[i])) {
 			err("invalid port %s", port);
@@ -63,12 +149,23 @@ static int detach_port(char *port)
 		return -1;
 	}
 
+	//ret = usbip_vhci_detach_device(portnum);
+	ret=get_imported_dev_addr(portnum,host,busid);
+	if (ret < 0){
+		ret = -1;
+		goto done;
+	}
+	ret=release_busid(host,busid);
+	if (ret < 0){
+		ret = -1;
+		goto done;
+	}
+
 	ret = usbip_vhci_detach_device(portnum);
 	if (ret < 0)
-		return -1;
-
+		ret= -1;
+ done:	
 	usbip_vhci_driver_close();
-
 	return ret;
 }
 

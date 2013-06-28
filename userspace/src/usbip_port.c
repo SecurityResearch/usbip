@@ -51,7 +51,7 @@ static int read_record(int rhport, char *host, char *port, char *busid)
 	FILE *file;
 	char path[PATH_MAX+1];
 
-	snprintf(path, PATH_MAX, "/tmp/vhci_hcd/port%d", rhport);
+	snprintf(path, PATH_MAX, "%s/port%d",VHCI_STATE_PATH, rhport);
 
 	file = fopen(path, "r");
 	if (!file) {
