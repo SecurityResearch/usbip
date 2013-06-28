@@ -100,6 +100,8 @@ static ssize_t add_socket(struct stub_device *sdev, struct socket *socket)
 		sdev->ud.status = SDEV_ST_USED;
 		spin_unlock(&sdev->ud.lock);
 
+        pr_info("resetting events\n");
+        usbip_reset_events(&sdev->ud);
 		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
 		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
 
@@ -516,6 +518,8 @@ static void shutdown_busid(struct bus_id_priv *busid_priv)
 {
 	if (busid_priv->sdev && !busid_priv->shutdown_busid) {
 		busid_priv->shutdown_busid = 1;
+        dev_err(&busid_priv->sdev->interface->dev, "shut_down busid\n");
+
 		usbip_event_add(&busid_priv->sdev->ud, SDEV_EVENT_REMOVED);
 
 		/* 2. wait for the stop of the event handler */
@@ -527,6 +531,7 @@ static void remove_busid(struct bus_id_priv *busid_priv)
 {
 	if (busid_priv->sdev && !busid_priv->shutdown_busid) {
 		busid_priv->shutdown_busid = 1;
+        dev_err(&busid_priv->sdev->interface->dev, "remove busid\n");
 		usbip_event_add(&busid_priv->sdev->ud, SDEV_EVENT_REMOVED);
 
 		/* 2. wait for the stop of the event handler */

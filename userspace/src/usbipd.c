@@ -187,6 +187,7 @@ static int recv_request_release(int sockfd)
 	}
 	PACK_OP_RELEASE_REQUEST(0, &req);
     sscanf(req.busid,"%u-%u",&busnum,&portnum);
+    info("Releasing port %s\n",req.busid);
 	dlist_for_each_data(host_driver->edev_list, edev,
 			    struct usbip_exported_device) {
 		//if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
@@ -207,32 +208,33 @@ static int recv_request_release(int sockfd)
 		if (rc < 0)
 			error = 1;
 	} else {
-		info("requested device not found: %s", req.busid);
+		err("requested device not found: %s", req.busid);
 		error = 1;
 	}
 
-	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
+	rc = usbip_net_send_op_common(sockfd, OP_REP_RELEASE,
 				      (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
-		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
+		err("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		return -1;
 	}
 
 	if (error) {
-		dbg("import request busid %s: failed", req.busid);
+		err("release request busid %s: failed", req.busid);
 		return -1;
 	}
 
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 	usbip_net_pack_usb_device(1, &pdu_udev);
+    strncpy(pdu_udev.busid,req.busid,SYSFS_BUS_ID_SIZE);
 
 	rc = usbip_net_send(sockfd, &pdu_udev, sizeof(pdu_udev));
 	if (rc < 0) {
-		dbg("usbip_net_send failed: devinfo");
+		err("usbip_net_send failed: devinfo");
 		return -1;
 	}
 
-	dbg("import request busid %s: complete", req.busid);
+	info("release request busid %s: complete", req.busid);
 
 	return 0;
 }
