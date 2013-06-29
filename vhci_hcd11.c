@@ -28,7 +28,7 @@
 #include "vhci.h"
 
 #define DRIVER_AUTHOR "Takahiro Hirofuchi"
-#define DRIVER_DESC "USB/IP 'Virtual' Host Controller (VHCI) Driver"
+#define DRIVER_DESC "USB/IP 'Virtual' Host Controller (VHCI) Driver for USB 1.1"
 
 /*
  * TODO
@@ -52,8 +52,8 @@ static int vhci_start(struct usb_hcd *vhci_hcd);
 static void vhci_stop(struct usb_hcd *hcd);
 static int vhci_get_frame_number(struct usb_hcd *hcd);
 
-static const char driver_name[] = "vhci_hcd";
-static const char driver_desc[] = "USB/IP Virtual Host Controller";
+static const char driver_name[] = "vhci_hcd1";
+static const char driver_desc[] = "USB/IP Virtual Host Controller USB 1.1 ";
 
 struct vhci_hcd *the_controller;
 
@@ -1069,7 +1069,7 @@ static struct hc_driver vhci_hc_driver = {
 	.product_desc	= driver_desc,
 	.hcd_priv_size	= sizeof(struct vhci_hcd),
 
-	.flags		= HCD_USB2,
+	.flags		= HCD_USB11,
 
 	.start		= vhci_start,
 	.stop		= vhci_stop,
