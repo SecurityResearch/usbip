@@ -14,3 +14,15 @@ usbipd
 Module*
 .tmp_versions/
 config.*
+Makefile.in
+userspace/aclocal.m4
+configure
+depcomp
+install-sh
+Makefile.in
+*.la
+*.lo
+*.sh
+missing
+stamp-h1
+

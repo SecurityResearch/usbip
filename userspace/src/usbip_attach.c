@@ -50,8 +50,11 @@ static int record_connection(char *host, char *port, char *busid, int rhport)
 	char path[PATH_MAX+1];
 	char buff[MAX_BUFF+1];
 	int ret;
-
-	ret = mkdir(VHCI_STATE_PATH, 0700);
+	struct stat file_status;
+	ret = stat(VHCI_STATE_PATH,&file_status);
+	if(ret<0){
+	  ret = mkdir(VHCI_STATE_PATH, 0700);
+	}
 	if (ret < 0)
 		return -1;
 
