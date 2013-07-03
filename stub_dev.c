@@ -102,6 +102,7 @@ static ssize_t add_socket(struct stub_device *sdev, struct socket *socket)
 
         pr_info("resetting events\n");
         usbip_reset_events(&sdev->ud);
+        sema_init(sdev->ud.xmiting_thread_count_sem,MAX_XMIT_THREAD_COUNT);
 		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
 		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
 

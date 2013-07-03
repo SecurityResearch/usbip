@@ -70,6 +70,8 @@ enum {
 extern unsigned long usbip_debug_flag;
 extern struct device_attribute dev_attr_usbip_debug;
 
+#define MAX_XMIT_THREAD_COUNT 5
+
 #define usbip_dbg_with_flag(flag, fmt, args...)		\
 	do {						\
 		if (flag & usbip_debug_flag)		\
@@ -276,6 +278,7 @@ enum usbip_status {
 #define	VDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
 #define	VDEV_EVENT_DEV_REMOVED	(USBIP_EH_DEV_REMOVED)
 
+
 /* a common structure for stub_device and vhci_device */
 struct usbip_device {
 	enum usbip_side side;
@@ -289,6 +292,7 @@ struct usbip_device {
 	struct task_struct *tcp_rx;
 	struct task_struct *tcp_tx;
 
+    struct semaphore xmiting_thread_count_sem;
 	unsigned long event;
 	struct task_struct *eh;
 	wait_queue_head_t eh_waitq;

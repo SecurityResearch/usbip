@@ -170,6 +170,13 @@ static struct stub_priv *dequeue_from_priv_tx(struct stub_device *sdev)
 	return NULL;
 }
 
+static int stub_tx_thread_fn(void *data)
+{
+	struct usbip_device *ud = data;
+	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
+    
+}
+
 static int stub_send_ret_submit(struct stub_device *sdev)
 {
 	unsigned long flags;
@@ -190,6 +197,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		void *iso_buffer = NULL;
 		struct kvec *iov = NULL;
 		int iovnum = 0;
+        struct stub_tx_packet *tx_packet;
 
 		txsize = 0;
 		memset(&pdu_header, 0, sizeof(pdu_header));
@@ -282,7 +290,8 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			txsize += len;
 			iovnum++;
 		}
-
+        sema_down(&sdev->ud.xmiting_thread_count_sem);
+        kthread_get_run(stub_tx_thread_fn, &sdev->ud, "stub_tx_fn_th");
 		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
 						iov,  iovnum, txsize);
 		if (ret != txsize) {

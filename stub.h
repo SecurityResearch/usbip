@@ -32,6 +32,13 @@
 #define STUB_BUSID_ADDED 2
 #define STUB_BUSID_ALLOC 3
 
+struct stub_tx_packet{
+    struct stub_device *sdev;
+    struct kvec *iov ;
+    void *iso_buffer;
+};
+
+    
 struct stub_device {
 	struct usb_interface *interface;
 	struct usb_device *udev;
