@@ -19,9 +19,21 @@
 
 #include <linux/kthread.h>
 #include <linux/socket.h>
+#include <linux/time.h>
 
 #include "usbip_common.h"
 #include "stub.h"
+
+static inline unsigned int get_timestamp(void)
+{
+	struct timeval tval;
+	unsigned int stamp;
+
+	do_gettimeofday(&tval);
+	stamp = tval.tv_sec & 0xFFF;	/* 2^32 = 4294967296. Limit to 4096s. */
+	stamp = stamp * 1000000 + tval.tv_usec;
+	return stamp;
+}
 
 static void stub_free_priv_and_urb(struct stub_priv *priv)
 {
@@ -98,9 +110,11 @@ void stub_complete(struct urb *urb)
 	/* link a urb to the queue of tx. */
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	if (priv->unlinking) {
+        pr_info("URB UNLINK enqueued %lx %u\n",priv->seqnum,get_timestamp());
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, urb->status);
 		stub_free_priv_and_urb(priv);
 	} else {
+        pr_info("URB SUBMIT enqueued %lx %u\n",(unsigned long int)urb,get_timestamp());
 		list_move_tail(&priv->list, &sdev->priv_tx);
 	}
 	spin_unlock_irqrestore(&sdev->priv_lock, flags);
@@ -285,6 +299,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
 						iov,  iovnum, txsize);
+        pr_info("URB SUBMIT sent %lx %u\n",(unsigned long int)urb,get_timestamp());
 		if (ret != txsize) {
 			dev_err(&sdev->interface->dev,
 				"sendmsg failed!, retval %d for %zd\n",
@@ -363,6 +378,8 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 
 		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg, iov,
 				     1, txsize);
+        pr_info("URB UNLINK sent %lx %u\n",unlink->seqnum,get_timestamp());
+
 		if (ret != txsize) {
 			dev_err(&sdev->interface->dev,
 				"sendmsg failed!, retval %d for %zd\n",
