@@ -325,6 +325,7 @@ struct usbip_device {
 /* usbip_common.c */
 void usbip_dump_urb(struct urb *purb);
 void usbip_dump_header(struct usbip_header *pdu);
+unsigned int usbip_get_timestamp(void);
 
 int usbip_recv(struct socket *sock, void *buf, int size);
 struct socket *sockfd_to_socket(unsigned int sockfd);

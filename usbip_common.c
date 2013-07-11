@@ -796,7 +796,7 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 {
 	int ret;
 	int size;
-
+	int i;
 	if (ud->side == USBIP_STUB) {
 		/* stub_rx.c */
 		/* the direction of urb must be OUT. */
@@ -827,10 +827,29 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 			return -EPIPE;
 		}
 	}
+	dev_info(&urb->dev->dev, "ROSHAN_RECV_XBUFF %u received %lx buff ",usbip_get_timestamp(),(unsigned long)urb);
+	i=0;
+	while(i<size){
+	  pr_info("%x",transfer_buffer[i]);
+	}
+	pr_info("\n");
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usbip_recv_xbuff);
+
+unsigned int usbip_get_timestamp(void)
+{
+	struct timeval tval;
+	unsigned int stamp;
+
+	do_gettimeofday(&tval);
+	stamp = tval.tv_sec & 0xFFF;	/* 2^32 = 4294967296. Limit to 4096s. */
+	stamp = stamp * 1000000 + tval.tv_usec;
+	return stamp;
+}
+EXPORT_SYMBOL_GPL(usbip_get_timestamp);
+
 
 static int __init usbip_core_init(void)
 {
