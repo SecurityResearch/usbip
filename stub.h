@@ -36,6 +36,10 @@ struct stub_tx_packet{
     struct stub_device *sdev;
     struct kvec *iov ;
     void *iso_buffer;
+    size_t txsize;
+    int iovnum;
+    struct urb *urb;
+	struct task_struct *wait_th;
 };
 
     

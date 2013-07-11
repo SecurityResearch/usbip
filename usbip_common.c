@@ -830,7 +830,8 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 	dev_info(&urb->dev->dev, "ROSHAN_RECV_XBUFF %u received %lx buff ",usbip_get_timestamp(),(unsigned long)urb);
 	i=0;
 	while(i<size){
-	  pr_info("%x",transfer_buffer[i]);
+        pr_info("%x",((char *)(urb->transfer_buffer))[i]);
+      i++;
 	}
 	pr_info("\n");
 

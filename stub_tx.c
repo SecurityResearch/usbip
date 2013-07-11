@@ -172,9 +172,40 @@ static struct stub_priv *dequeue_from_priv_tx(struct stub_device *sdev)
 
 static int stub_tx_thread_fn(void *data)
 {
-	struct usbip_device *ud = data;
-	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-    
+    struct stub_tx_packet *pkt = data;
+	struct stub_device *sdev = pkt->sdev;
+	struct msghdr msg;
+    int ret;
+    int i;
+    size_t length = pkt->txsize;
+    ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
+                         pkt->iov,  pkt->iovnum, pkt->txsize);
+    pr_info("ROSHAN_STUB_TX Sent packet ");
+    i=0;
+    while(i<pkt->urb->actual_length){
+        pr_info("%x",((char *)(pkt->urb->transfer_buffer))[i]);
+        i++;
+    }
+    pr_info("\n");
+    if (ret != pkt->txsize) {
+        dev_err(&sdev->interface->dev,
+				"sendmsg failed!, retval %d for %zd\n",
+				ret, pkt->txsize);
+        kfree(pkt->iov);
+        kfree(pkt->iso_buffer);
+        usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
+        //up(&sdev->ud.xmiting_thread_count_sem);
+        return -1;
+    }
+
+    kfree(pkt->iov);
+    kfree(pkt->iso_buffer);
+    kfree(pkt);
+    //up(&sdev->ud.xmiting_thread_count_sem);
+    if(pkt->wait_th!=NULL){
+	    kthread_stop_put(pkt->wait_th);
+    }
+    return length;
 }
 
 static int stub_send_ret_submit(struct stub_device *sdev)
@@ -186,6 +217,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 	size_t txsize;
 
 	size_t total_size = 0;
+    struct task_struct *prev_th = NULL;
 
     if(sdev->ud.tcp_socket==NULL){
         return -1;
@@ -290,26 +322,23 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			txsize += len;
 			iovnum++;
 		}
-        sema_down(&sdev->ud.xmiting_thread_count_sem);
-        kthread_get_run(stub_tx_thread_fn, &sdev->ud, "stub_tx_fn_th");
-		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
-						iov,  iovnum, txsize);
-		if (ret != txsize) {
-			dev_err(&sdev->interface->dev,
-				"sendmsg failed!, retval %d for %zd\n",
-				ret, txsize);
-			kfree(iov);
-			kfree(iso_buffer);
-			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
-			return -1;
-		}
-
-		kfree(iov);
-		kfree(iso_buffer);
+        //down(&sdev->ud.xmiting_thread_count_sem);
+        tx_packet = kzalloc(sizeof(struct stub_tx_packet), GFP_KERNEL);
+        tx_packet->sdev=sdev;
+        tx_packet->iov=iov;
+        tx_packet->iovnum=iovnum;
+        tx_packet->txsize=txsize;
+        tx_packet->iso_buffer=iso_buffer;
+        tx_packet->urb=urb;
+        tx_packet->wait_th=prev_th;
+        prev_th=kthread_get_run(stub_tx_thread_fn, tx_packet, "stub_tx_fn_th");
 
 		total_size += txsize;
 	}
 
+    if(prev_th!=NULL){
+        kthread_stop_put(prev_th);
+     }
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	list_for_each_entry_safe(priv, tmp, &sdev->priv_free, list) {
 		stub_free_priv_and_urb(priv);
