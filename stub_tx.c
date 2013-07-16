@@ -69,6 +69,7 @@ void stub_complete(struct urb *urb)
 	unsigned long flags;
 
 	usbip_dbg_stub_tx("complete! status %d\n", urb->status);
+        //pr_info("ROSHAN_STUB_TX [%u] Completed URB %lx with status %d\n",usbip_get_timestamp(),(unsigned long)(urb),urb->status);
 
 	switch (urb->status) {
 	case 0:
@@ -101,8 +102,11 @@ void stub_complete(struct urb *urb)
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, urb->status);
 		stub_free_priv_and_urb(priv);
 	} else {
+        //pr_info("ROSHAN_STUB_TX [%u] Enqueuing sub URB %lx\n",usbip_get_timestamp(),(unsigned long)(urb));
 		list_move_tail(&priv->list, &sdev->priv_tx);
+        //pr_info("ROSHAN_STUB_TX [%u] Enqued sub URB %lx\n",usbip_get_timestamp(),(unsigned long)(urb));
 	}
+        //pr_info("ROSHAN_STUB_TX [%u] Enqueued URB %lx\n",usbip_get_timestamp(),(unsigned long)(urb));
 	spin_unlock_irqrestore(&sdev->priv_lock, flags);
 
 	/* wake up tx_thread */
@@ -160,7 +164,9 @@ static struct stub_priv *dequeue_from_priv_tx(struct stub_device *sdev)
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 
 	list_for_each_entry_safe(priv, tmp, &sdev->priv_tx, list) {
+        //pr_info("ROSHAN_STUB_TX [%u] Dequeuing sub URB %lx\n",usbip_get_timestamp(),(unsigned long)(priv->urb));
 		list_move_tail(&priv->list, &sdev->priv_free);
+        //pr_info("ROSHAN_STUB_TX [%u] Enqued sub URB %lx\n",usbip_get_timestamp(),(unsigned long)(priv->urb));
 		spin_unlock_irqrestore(&sdev->priv_lock, flags);
 		return priv;
 	}
@@ -168,6 +174,20 @@ static struct stub_priv *dequeue_from_priv_tx(struct stub_device *sdev)
 	spin_unlock_irqrestore(&sdev->priv_lock, flags);
 
 	return NULL;
+}
+
+static void wait_for_thread(struct thread_q *th)
+{
+    if(th!=NULL){
+        //pr_info("Waiting for a transmitting thread 2\n");
+        wait_event_interruptible(th->thread_wait_q,(atomic_read(&th->count)==0));
+        //pr_info("Stopping a transmitting thread 2\n");
+        kthread_stop_put(th->wait_th);
+        kfree(th);
+     }else{
+	//pr_info("No Thread to Stop 2\n");
+     }
+
 }
 
 static int stub_tx_thread_fn(void *data)
@@ -178,15 +198,16 @@ static int stub_tx_thread_fn(void *data)
     int ret;
     int i;
     size_t length = pkt->txsize;
+    //pr_info("ROSHAN_STUB_TX [%u] Sending packet %lx \n",usbip_get_timestamp(),(unsigned long)(pkt->urb));
     ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
                          pkt->iov,  pkt->iovnum, pkt->txsize);
-    pr_info("ROSHAN_STUB_TX Sent packet ");
-    i=0;
+    pr_info("ROSHAN_STUB_TX [%u] Sent packet %lx \n",usbip_get_timestamp(),(unsigned long)(pkt->urb));
+    /*i=0;
     while(i<pkt->urb->actual_length){
-        pr_info("%x",((char *)(pkt->urb->transfer_buffer))[i]);
+        printk("%2x",((char *)(pkt->urb->transfer_buffer))[i]);
         i++;
     }
-    pr_info("\n");
+    printk("\n");*/
     if (ret != pkt->txsize) {
         dev_err(&sdev->interface->dev,
 				"sendmsg failed!, retval %d for %zd\n",
@@ -194,18 +215,19 @@ static int stub_tx_thread_fn(void *data)
         kfree(pkt->iov);
         kfree(pkt->iso_buffer);
         usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
-        //up(&sdev->ud.xmiting_thread_count_sem);
-        return -1;
+        up(&sdev->ud.xmiting_thread_count_sem);
+        return 0;
     }
 
     kfree(pkt->iov);
     kfree(pkt->iso_buffer);
+    
+    up(&sdev->ud.xmiting_thread_count_sem);
+    wait_for_thread(pkt->wait_for_th);
+    atomic_set(&pkt->this_thread->count,0);
+    wake_up(&pkt->this_thread->thread_wait_q);
     kfree(pkt);
-    //up(&sdev->ud.xmiting_thread_count_sem);
-    if(pkt->wait_th!=NULL){
-	    kthread_stop_put(pkt->wait_th);
-    }
-    return length;
+    return 0;
 }
 
 static int stub_send_ret_submit(struct stub_device *sdev)
@@ -217,11 +239,13 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 	size_t txsize;
 
 	size_t total_size = 0;
-    struct task_struct *prev_th = NULL;
+    struct thread_q *prev_th_info = NULL;
 
+    //pr_info("Inside %s %p\n",__func__,prev_th_info);
     if(sdev->ud.tcp_socket==NULL){
         return -1;
     }
+       prev_th_info=NULL;
 	while ((priv = dequeue_from_priv_tx(sdev)) != NULL) {
 		int ret;
 		struct urb *urb = priv->urb;
@@ -231,6 +255,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		int iovnum = 0;
         struct stub_tx_packet *tx_packet;
 
+        //pr_info("ROSHAN [%u] dequeued URB %p seqnum %d\n",usbip_get_timestamp(),urb,priv->seqnum);
 		txsize = 0;
 		memset(&pdu_header, 0, sizeof(pdu_header));
 		memset(&msg, 0, sizeof(msg));
@@ -246,6 +271,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
             dev_err(&sdev->interface->dev, "alloc stub_ret submit\n");
 
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
+            wait_for_thread(prev_th_info);
 			return -1;
 		}
 
@@ -300,7 +326,8 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				kfree(iov);
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_TCP);
-			   return -1;
+                wait_for_thread(prev_th_info);
+                return -1;
 			}
 		}
 
@@ -314,6 +341,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_MALLOC);
 				kfree(iov);
+                wait_for_thread(prev_th_info);
 				return -1;
 			}
 
@@ -322,7 +350,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			txsize += len;
 			iovnum++;
 		}
-        //down(&sdev->ud.xmiting_thread_count_sem);
+        down(&sdev->ud.xmiting_thread_count_sem);
         tx_packet = kzalloc(sizeof(struct stub_tx_packet), GFP_KERNEL);
         tx_packet->sdev=sdev;
         tx_packet->iov=iov;
@@ -330,15 +358,20 @@ static int stub_send_ret_submit(struct stub_device *sdev)
         tx_packet->txsize=txsize;
         tx_packet->iso_buffer=iso_buffer;
         tx_packet->urb=urb;
-        tx_packet->wait_th=prev_th;
-        prev_th=kthread_get_run(stub_tx_thread_fn, tx_packet, "stub_tx_fn_th");
+        tx_packet->wait_for_th=prev_th_info;
+        prev_th_info = kzalloc(sizeof(struct thread_q), GFP_KERNEL);
+        init_waitqueue_head(&prev_th_info->thread_wait_q);
+        atomic_set(&prev_th_info->count,1);
+        tx_packet->this_thread = prev_th_info;
+        prev_th_info->wait_th=kthread_get_run(stub_tx_thread_fn, tx_packet, "stub_tx_fn_th");
+        //pr_info("Created thread %s %p\n",__func__,prev_th_info);
 
 		total_size += txsize;
 	}
 
-    if(prev_th!=NULL){
-        kthread_stop_put(prev_th);
-     }
+    //pr_info("Leaving %s %p\n",__func__,prev_th_info);
+    wait_for_thread(prev_th_info);
+    //pr_info("Freeing sent URBs\n");
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	list_for_each_entry_safe(priv, tmp, &sdev->priv_free, list) {
 		stub_free_priv_and_urb(priv);
@@ -347,6 +380,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 	return total_size;
 }
+
 
 static struct stub_unlink *dequeue_from_unlink_tx(struct stub_device *sdev)
 {

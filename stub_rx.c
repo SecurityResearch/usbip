@@ -465,10 +465,14 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	struct usb_device *udev = sdev->udev;
 	int pipe = get_pipe(sdev, pdu->base.ep, pdu->base.direction);
 
+    
 	priv = stub_priv_alloc(sdev, pdu);
+    //pr_info("ROSHAN [%u] received URB of seqnum %d\n",usbip_get_timestamp(),priv->seqnum);
+
 	if (!priv)
 		return;
 
+    //pr_info("ROSHAN [%u] received URB %p of seqnum %d\n",usbip_get_timestamp(),priv->urb,priv->seqnum);
 	/* setup a urb */
 	if (usb_pipeisoc(pipe))
 		priv->urb = usb_alloc_urb(pdu->u.cmd_submit.number_of_packets,
@@ -524,6 +528,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	masking_bogus_flags(priv->urb);
 	/* urb is now ready to submit */
 	ret = usb_submit_urb(priv->urb, GFP_KERNEL);
+    pr_info("ROSHAN [%u] submitted URB %p of seqnum %d\n",usbip_get_timestamp(),priv->urb,priv->seqnum);
 
 	if (ret == 0)
 		usbip_dbg_stub_rx("submit urb ok, seqnum %u\n",

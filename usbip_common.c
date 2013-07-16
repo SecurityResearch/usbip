@@ -827,13 +827,13 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 			return -EPIPE;
 		}
 	}
-	dev_info(&urb->dev->dev, "ROSHAN_RECV_XBUFF %u received %lx buff ",usbip_get_timestamp(),(unsigned long)urb);
+	/*dev_info(&urb->dev->dev, "ROSHAN_RECV_XBUFF %u received %lx buff ",usbip_get_timestamp(),(unsigned long)urb);
 	i=0;
 	while(i<size){
         pr_info("%x",((char *)(urb->transfer_buffer))[i]);
       i++;
 	}
-	pr_info("\n");
+	pr_info("\n");*/
 
 	return ret;
 }

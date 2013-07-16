@@ -32,6 +32,12 @@
 #define STUB_BUSID_ADDED 2
 #define STUB_BUSID_ALLOC 3
 
+struct thread_q{
+    struct task_struct *wait_th;
+    wait_queue_head_t thread_wait_q;
+    atomic_t count;
+};
+
 struct stub_tx_packet{
     struct stub_device *sdev;
     struct kvec *iov ;
@@ -39,7 +45,8 @@ struct stub_tx_packet{
     size_t txsize;
     int iovnum;
     struct urb *urb;
-	struct task_struct *wait_th;
+    struct thread_q *this_thread;
+	struct thread_q *wait_for_th;
 };
 
     
