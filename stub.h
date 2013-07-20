@@ -31,6 +31,8 @@
 #define STUB_BUSID_REMOV 1
 #define STUB_BUSID_ADDED 2
 #define STUB_BUSID_ALLOC 3
+#define MAX_TCP_SIZE 65500
+#define MAX_URB_COUNT 5
 
 struct stub_device {
 	struct usb_interface *interface;

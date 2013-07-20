@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
  *
@@ -190,52 +191,117 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 	struct stub_priv *priv, *tmp;
 
 	struct msghdr msg;
-	size_t txsize;
-
+	size_t txsize,temp_tx_size;
+    struct kvec *temp_iov = NULL;
+    int ret;
+    int temp_iovnum=0;
+    int total_iovnum=0;
+    int packet_count=-1;
 	size_t total_size = 0;
-
+    void *iso_buffers[MAX_URB_COUNT]={NULL,NULL,NULL,NULL,NULL};
+    void *iso_buffer;
+    struct usbip_header pdu_headers[MAX_URB_COUNT];
+    temp_tx_size=0;
     if(sdev->ud.tcp_socket==NULL){
         return -1;
     }
 	while ((priv = dequeue_from_priv_tx(sdev)) != NULL) {
-		int ret;
 		struct urb *urb = priv->urb;
-		struct usbip_header pdu_header;
-		void *iso_buffer = NULL;
 		struct kvec *iov = NULL;
 		int iovnum = 0;
-
+        void *iso_buffer=NULL;
+        struct usbip_header *pdu_header;
+        size_t expected_pkt_size;
 		txsize = 0;
-		memset(&pdu_header, 0, sizeof(pdu_header));
 		memset(&msg, 0, sizeof(msg));
-
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
-			iovnum = 2 + urb->number_of_packets;
+        expected_pkt_size = urb->actual_length + sizeof(struct usbip_header);
+        if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS){
+            iovnum = 2 + urb->number_of_packets;
+            expected_pkt_size+=(urb->number_of_packets * sizeof(struct usbip_iso_packet_descriptor));
+        }
 		else
 			iovnum = 2;
+        
+        if(temp_tx_size + expected_pkt_size < MAX_TCP_SIZE && packet_count < MAX_URB_COUNT-1){
+            total_iovnum += iovnum;
+            packet_count++;
+        }else{
+            
+            ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
+                                 temp_iov,  temp_iovnum, temp_tx_size);
+            pr_info("URB SUBMIT sent %lx %u\n",(unsigned long int)urb,get_timestamp());
+            if (ret != temp_tx_size) {
+                dev_err(&sdev->interface->dev,
+                        "sendmsg failed!, retval %d for %zd == %d\n",
+                        ret, temp_tx_size, temp_tx_size);
+                kfree(temp_iov);
+                for(;packet_count>=0;packet_count--){
+                    iso_buffer = iso_buffers[packet_count];
+                    if(iso_buffer != NULL){
+                        kfree(iso_buffer);
+                    }
+                    iso_buffers[packet_count]=NULL;
+                }
+                usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
+                return -1;
+            }
 
-		iov = kzalloc(iovnum * sizeof(struct kvec), GFP_KERNEL);
-
+            kfree(temp_iov);
+            for(;packet_count>=0;packet_count--){
+                iso_buffer = iso_buffers[packet_count];
+                if(iso_buffer != NULL){
+                    kfree(iso_buffer);
+                }
+                iso_buffers[packet_count]=NULL;
+            }
+            total_iovnum = iovnum;
+            temp_iovnum  = 0;
+            packet_count=0;
+            temp_tx_size = 0;
+            temp_iov = NULL;
+        }
+        
+        pdu_header = pdu_headers+packet_count;
+		memset(pdu_header, 0, sizeof(pdu_header));
+		iov = kzalloc(total_iovnum * sizeof(struct kvec), GFP_KERNEL);
+        
 		if (!iov) {
             dev_err(&sdev->interface->dev, "alloc stub_ret submit\n");
-
+            if(temp_iov!=NULL){
+                kfree(temp_iov);
+                for(;packet_count>=0;packet_count--){
+                    iso_buffer = iso_buffers[packet_count];
+                    if(iso_buffer != NULL){
+                        kfree(iso_buffer);
+                    }
+                    iso_buffers[packet_count]=NULL;
+                }
+            }
+                
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
 			return -1;
 		}
 
+        if(temp_iov!=NULL){
+            memcpy(iov,temp_iov,temp_iovnum*(sizeof(struct kvec)));
+            kfree(temp_iov);
+        }
+        temp_iov=iov;
+        iov=iov+temp_iovnum;
+        temp_iovnum=total_iovnum;
 		iovnum = 0;
 
 		/* 1. setup usbip_header */
-		setup_ret_submit_pdu(&pdu_header, urb);
+		setup_ret_submit_pdu(pdu_header, urb);
 		usbip_dbg_stub_tx("setup txdata seqnum: %d urb: %p\n",
-				  pdu_header.base.seqnum, urb);
+				  pdu_header->base.seqnum, urb);
 		/*usbip_dump_header(pdu_header);*/
-		usbip_header_correct_endian(&pdu_header, 1);
+		usbip_header_correct_endian(pdu_header, 1);
 
-		iov[iovnum].iov_base = &pdu_header;
-		iov[iovnum].iov_len  = sizeof(pdu_header);
+		iov[iovnum].iov_base = pdu_header;
+		iov[iovnum].iov_len  = sizeof(*pdu_header);
 		iovnum++;
-		txsize += sizeof(pdu_header);
+		txsize += sizeof(*pdu_header);
 
 		/* 2. setup transfer buffer */
 		if (usb_pipein(urb->pipe) &&
@@ -265,13 +331,20 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				txsize += urb->iso_frame_desc[i].actual_length;
 			}
 
-			if (txsize != sizeof(pdu_header) + urb->actual_length) {
+			if (txsize != sizeof(*pdu_header) + urb->actual_length) {
 				dev_err(&sdev->interface->dev,
 					"actual length of urb %d does not "
 					"match iso packet sizes %zu\n",
 					urb->actual_length,
-					txsize-sizeof(pdu_header));
-				kfree(iov);
+					txsize-sizeof(*pdu_header));
+				kfree(temp_iov);
+                for(;packet_count>=0;packet_count--){
+                    iso_buffer = iso_buffers[packet_count];
+                    if(iso_buffer != NULL){
+                        kfree(iso_buffer);
+                    }
+                    iso_buffers[packet_count]=NULL;
+                }
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_TCP);
 			   return -1;
@@ -283,11 +356,19 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			ssize_t len = 0;
 
 			iso_buffer = usbip_alloc_iso_desc_pdu(urb, &len);
+            iso_buffers[packet_count] = iso_buffer;
 			if (!iso_buffer) {
                 dev_err(&sdev->interface->dev, "alloc stub_pipe\n");
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_MALLOC);
-				kfree(iov);
+				kfree(temp_iov);
+                for(;packet_count>=0;packet_count--){
+                    iso_buffer = iso_buffers[packet_count];
+                    if(iso_buffer != NULL){
+                        kfree(iso_buffer);
+                    }
+                    iso_buffers[packet_count]=NULL;
+                }
 				return -1;
 			}
 
@@ -296,32 +377,53 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			txsize += len;
 			iovnum++;
 		}
-
-		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
-						iov,  iovnum, txsize);
-        pr_info("URB SUBMIT sent %lx %u\n",(unsigned long int)urb,get_timestamp());
-		if (ret != txsize) {
-			dev_err(&sdev->interface->dev,
-				"sendmsg failed!, retval %d for %zd\n",
-				ret, txsize);
-			kfree(iov);
-			kfree(iso_buffer);
-			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
-			return -1;
-		}
-
-		kfree(iov);
-		kfree(iso_buffer);
-
+        //temp_iovnum += iovnum;
+        temp_tx_size += txsize;
 		total_size += txsize;
+        pr_info("ROSHAN added URB %p\n",urb);
 	}
 
+    if(temp_iov != NULL){
+        
+        ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
+                             temp_iov,  temp_iovnum, temp_tx_size);
+        pr_info("URB SUBMIT sent  %u\n",get_timestamp());
+        if (ret != temp_tx_size) {
+            dev_err(&sdev->interface->dev,
+                    "sendmsg failed!, retval %d for %zd\n",
+                    ret, temp_tx_size);
+            kfree(temp_iov);
+            for(;packet_count>=0;packet_count--){
+                iso_buffer = iso_buffers[packet_count];
+                if(iso_buffer != NULL){
+                    kfree(iso_buffer);
+                }
+                iso_buffers[packet_count]=NULL;
+            }
+            usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
+            return -1;
+        }
+    
+        kfree(temp_iov);
+        for(;packet_count>=0;packet_count--){
+            iso_buffer = iso_buffers[packet_count];
+            if(iso_buffer != NULL){
+                kfree(iso_buffer);
+            }
+            iso_buffers[packet_count]=NULL;
+        }
+        temp_iovnum  = 0;
+        packet_count=0;
+        temp_iov = NULL;
+    }
+            
+        
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	list_for_each_entry_safe(priv, tmp, &sdev->priv_free, list) {
 		stub_free_priv_and_urb(priv);
 	}
 	spin_unlock_irqrestore(&sdev->priv_lock, flags);
-
+    
 	return total_size;
 }
 
