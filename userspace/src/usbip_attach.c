@@ -109,13 +109,14 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 	return port;
 }
 
-static int query_import_device(int sockfd, char *busid)
+static int query_import_device(int sockfd, char *busid, char *id, char *passwd)
 {
 	int rc;
 	struct op_import_request request;
 	struct op_import_reply   reply;
 	uint16_t code = OP_REP_IMPORT;
-
+    char *pwd=passwd;/***/
+    memset(pwd,0,strlen(passwd));
 	memset(&request, 0, sizeof(request));
 	memset(&reply, 0, sizeof(reply));
 
@@ -127,6 +128,7 @@ static int query_import_device(int sockfd, char *busid)
 	}
 
 	strncpy(request.busid, busid, SYSFS_BUS_ID_SIZE-1);
+	strncpy(request.userid, id, SYSFS_BUS_ID_SIZE-1);
 
 	PACK_OP_IMPORT_REQUEST(0, &request);
 
@@ -161,7 +163,7 @@ static int query_import_device(int sockfd, char *busid)
 	return import_device(sockfd, &reply.udev);
 }
 
-static int attach_device(char *host, char *busid)
+static int attach_device(char *host, char *busid, char *userid, char *passwd)
 {
 	int sockfd;
 	int rc;
@@ -173,7 +175,7 @@ static int attach_device(char *host, char *busid)
 		return -1;
 	}
 
-	rhport = query_import_device(sockfd, busid);
+	rhport = query_import_device(sockfd, busid,userid,passwd);
 	if (rhport < 0) {
 		err("query");
 		return -1;
@@ -195,15 +197,19 @@ int usbip_attach(int argc, char *argv[])
 	static const struct option opts[] = {
 		{ "host", required_argument, NULL, 'h' },
 		{ "busid", required_argument, NULL, 'b' },
+		{ "userid", required_argument, NULL, 'u' },
+		{ "passwd", required_argument, NULL, 'p' },
 		{ NULL, 0, NULL, 0 }
 	};
 	char *host = NULL;
 	char *busid = NULL;
+    char *userid= NULL;
+    char *passwd=NULL;
 	int opt;
 	int ret = -1;
 
 	for (;;) {
-		opt = getopt_long(argc, argv, "h:b:", opts, NULL);
+		opt = getopt_long(argc, argv, "h:b:u:p:", opts, NULL);
 
 		if (opt == -1)
 			break;
@@ -215,6 +221,12 @@ int usbip_attach(int argc, char *argv[])
 		case 'b':
 			busid = optarg;
 			break;
+		case 'u':
+			userid = optarg;
+			break;
+		case 'p':
+			passwd = optarg;
+			break;
 		default:
 			goto err_out;
 		}
@@ -223,7 +235,7 @@ int usbip_attach(int argc, char *argv[])
 	if (!host || !busid)
 		goto err_out;
 
-	ret = attach_device(host, busid);
+	ret = attach_device(host, busid,userid, passwd);
 	goto out;
 
 err_out:
