@@ -124,7 +124,7 @@ void stub_complete(struct urb *urb)
 }
 
 static inline void setup_base_pdu(struct usbip_header_basic *base,
-				  __u32 command, __u32 seqnum)
+                                  __u32 command, __u32 seqnum)
 {
 	base->command	= command;
 	base->seqnum	= seqnum;
@@ -160,7 +160,7 @@ static void setup_ret_submit_pdu(struct usbip_header *rpdu, struct urb *urb)
 }
 
 static void setup_ret_unlink_pdu(struct usbip_header *rpdu,
-				 struct stub_unlink *unlink)
+                                 struct stub_unlink *unlink)
 {
 	setup_base_pdu(&rpdu->base, USBIP_RET_UNLINK, unlink->seqnum);
 	rpdu->u.ret_unlink.status = unlink->status;
@@ -231,6 +231,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				  pdu_header.base.seqnum, urb);
 		/*usbip_dump_header(pdu_header);*/
 		usbip_header_correct_endian(&pdu_header, 1);
+        usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
 
 		iov[iovnum].iov_base = &pdu_header;
 		iov[iovnum].iov_len  = sizeof(pdu_header);
@@ -371,6 +372,7 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 		/* 1. setup usbip_header */
 		setup_ret_unlink_pdu(&pdu_header, unlink);
 		usbip_header_correct_endian(&pdu_header, 1);
+        usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
 
 		iov[0].iov_base = &pdu_header;
 		iov[0].iov_len  = sizeof(pdu_header);
@@ -431,7 +433,7 @@ static int stub_send_cmd_attach(struct stub_device *sdev)
 		/* 1. setup usbip_header */
     setup_cmd_attach_pdu(&pdu_header);
     usbip_header_correct_endian(&pdu_header, 1);
-    
+    usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
     iov[0].iov_base = &pdu_header;
     iov[0].iov_len  = sizeof(pdu_header);
     txsize += sizeof(pdu_header);
@@ -479,6 +481,7 @@ static int stub_send_cmd_detach(struct stub_device *sdev)
 		/* 1. setup usbip_header */
     setup_cmd_detach_pdu(&pdu_header);
     usbip_header_correct_endian(&pdu_header, 1);
+    usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
     
     iov[0].iov_base = &pdu_header;
     iov[0].iov_len  = sizeof(pdu_header);
