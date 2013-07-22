@@ -233,7 +233,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 		return;
 	}
 
-    usbip_header_crypt(&pdu,sdev->crypto_key,0);
+    usbip_header_crypt(&pdu,vdev->crypto_key,0);
 
 	usbip_header_correct_endian(&pdu, 0);
 

@@ -949,6 +949,7 @@ static void vhci_device_init(struct vhci_device *vdev)
 
 	init_waitqueue_head(&vdev->waitq_tx);
 
+	memset(vdev->crypto_key,0,16);
 	vdev->ud.eh_ops.shutdown = vhci_shutdown_connection;
 	vdev->ud.eh_ops.reset = vhci_device_reset;
 	vdev->ud.eh_ops.remove_dev = vhci_remove_device;

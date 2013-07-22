@@ -88,7 +88,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		/* 1. setup usbip_header */
 		setup_cmd_submit_pdu(&pdu_header, urb);
 		usbip_header_correct_endian(&pdu_header, 1);
-        usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
+		usbip_header_crypt(&pdu_header,vdev->crypto_key,1);
 
 		iov[0].iov_base = &pdu_header;
 		iov[0].iov_len  = sizeof(pdu_header);
@@ -182,7 +182,7 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 		pdu_header.u.cmd_unlink.seqnum = unlink->unlink_seqnum;
 
 		usbip_header_correct_endian(&pdu_header, 1);
-        usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
+        usbip_header_crypt(&pdu_header,vdev->crypto_key,1);
 
 		iov[0].iov_base = &pdu_header;
 		iov[0].iov_len  = sizeof(pdu_header);
@@ -231,7 +231,7 @@ static int vhci_send_cmd_detach(struct vhci_device *vdev)
 	pdu_header.base.ep	= 0;
 	
 	usbip_header_correct_endian(&pdu_header, 1);
-    usbip_header_crypt(&pdu_header,sdev->crypto_key,1);
+    usbip_header_crypt(&pdu_header,vdev->crypto_key,1);
 	
 	iov[0].iov_base = &pdu_header;
 	iov[0].iov_len  = sizeof(pdu_header);

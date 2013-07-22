@@ -48,6 +48,8 @@ struct vhci_device {
 	struct list_head unlink_tx;
 	struct list_head unlink_rx;
 
+        char crypto_key[16];
+
 	/* vhci_tx thread sleeps for this queue */
 	wait_queue_head_t waitq_tx;
 };
