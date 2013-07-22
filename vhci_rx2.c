@@ -81,6 +81,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		return;
 	}
+	pr_info("Received urb of seqnum %u\n", pdu->base.seqnum);
 
 	/* unpack the pdu to a urb */
 	usbip_pack_pdu(pdu, urb, USBIP_RET_SUBMIT, 0);
