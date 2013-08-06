@@ -1,7 +1,7 @@
 AM_CPPFLAGS = -I$(top_srcdir)/libsrc -DUSBIDS_FILE='"@USBIDS_DIR@/usb.ids"'
 AM_CFLAGS   = @EXTRA_CFLAGS@ @PACKAGE_CFLAGS@
 LDADD       = $(top_builddir)/libsrc/libusbip.la @PACKAGE_LIBS@
-AM_LDFLAGS  = -lpthread -ldl
+AM_LDFLAGS  = -lpthread -ldl -lcrypto
 sbin_PROGRAMS := usbip usbipd
 
 usbip_SOURCES := usbip.c utils.c usbip_network.c usbip_db.c \

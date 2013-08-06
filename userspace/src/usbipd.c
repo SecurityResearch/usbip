@@ -82,6 +82,20 @@ static int recv_request_import(int sockfd)
 	struct op_common reply;
 	struct usbip_exported_device *edev;
 	struct usbip_usb_device pdu_udev;
+    /* "opaque" encryption, decryption ctx structures that libcrypto uses to record
+       status of enc/dec operations */
+    EVP_CIPHER_CTX en, de;
+
+    /* 8 bytes to salt the key_data during key generation. This is an example of
+       compiled in salt. We just read the bit pattern created by these two 4 byte 
+       integers on the stack as 64 bits of contigous salt material - 
+       ofcourse this only works if sizeof(int) >= 4 */
+    unsigned int salt[] = {12345, 54321};
+    unsigned char *key_data;
+    int key_data_len,len;
+    char *busid;
+    unsigned char *ciphertext;
+
 	int found = 0;
 	int error = 0;
 	int rc;
@@ -90,6 +104,16 @@ static int recv_request_import(int sockfd)
 
 	memset(&req, 0, sizeof(req));
 	memset(&reply, 0, sizeof(reply));
+    /* the key_data is read from the argument list */
+    key_data = (unsigned char *)"roshan";
+    key_data_len = strlen("roshan");
+  
+
+    /* gen key and iv. init the cipher ctx object */
+    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+        printf("Couldn't initialize AES cipher\n");
+        return -1;
+    }
 
 	rc = usbip_net_recv(sockfd, &req, sizeof(req));
 	if (rc < 0) {
@@ -97,9 +121,15 @@ static int recv_request_import(int sockfd)
 		return -1;
 	}
 	PACK_OP_IMPORT_REQUEST(0, &req);
-    sscanf(req.busid,"%u-%u",&busnum,&portnum);
+
+    len = SYSFS_BUS_ID_SIZE;
+    busid = (char *)aes_decrypt(&de, req.busid, &len);
+
+    printf("Received request from user %s for bus %s\n",req.userid,busid);
+
+    sscanf(busid,"%u-%u",&busnum,&portnum);
 	dlist_for_each_data(host_driver->edev_list, edev,
-			    struct usbip_exported_device) {
+                        struct usbip_exported_device) {
 		//if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
         if(edev->udev.busnum == busnum){
 			info("found requested device: %s", req.busid);
@@ -108,14 +138,14 @@ static int recv_request_import(int sockfd)
 		}
     }
     if(!found){
-        info("Hub %d not found for busid %s\n",busnum,req.busid);
+        info("Hub %d not found for busid %s\n",busnum,busid);
         return -1;
     }
     /*rc = check_busid(req.busid);
-    if (rc < 0) {
-		dbg("usbip check_busid failed: import request");
-		return -1;
-        }*/
+      if (rc < 0) {
+      dbg("usbip check_busid failed: import request");
+      return -1;
+      }*/
     found = 1;
 
 	if (found) {
@@ -124,12 +154,12 @@ static int recv_request_import(int sockfd)
 
 		/* export device needs a TCP/IP socket descriptor */
 		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
-		rc = usbip_host_export_device(edev, req.busid, sockfd);
+		rc = usbip_host_export_device(edev, busid, sockfd);
 		if (rc < 0)
 			error = 1;
         
 	} else {
-		info("requested device not found: %s", req.busid);
+		info("requested device not found: %s", busid);
 		error = 1;
 	}
     struct timeval tv;
@@ -137,25 +167,28 @@ static int recv_request_import(int sockfd)
     tv.tv_sec = 3;  /* 3 Secs Timeout */
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
 	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
-				      (!error ? ST_OK : ST_NA));
+                                  (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		return -1;
 	}
 
 	if (error) {
-		dbg("import request busid %s: failed", req.busid);
+		dbg("import request busid %s: failed", busid);
 		return -1;
 	}
 
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 	usbip_net_pack_usb_device(1, &pdu_udev);
-        strncpy(pdu_udev.busid,req.busid,SYSFS_BUS_ID_SIZE);
-	rc = usbip_net_send(sockfd, &pdu_udev, sizeof(pdu_udev));
+    strncpy(pdu_udev.busid,busid,SYSFS_BUS_ID_SIZE);
+    len = sizeof(pdu_udev);
+    ciphertext = aes_encrypt(&en, (unsigned char *)(&pdu_udev), &len);
+	rc = usbip_net_send(sockfd, ciphertext, sizeof(pdu_udev)+AES_BLOCK_SIZE);
+    free(ciphertext);
 	if (rc < 0) {
 		dbg("usbip_net_send failed: devinfo");
 		return -1;
-        }
+    }
 
 	dbg("import request busid %s: complete", req.busid);
 

@@ -15,6 +15,9 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <openssl/evp.h>
+#include <openssl/aes.h>
+
 #ifndef USBIDS_FILE
 #define USBIDS_FILE "/usr/share/hwdata/usb.ids"
 #endif
@@ -146,4 +149,19 @@ void usbip_names_free(void);
 void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t product);
 void usbip_names_get_class(char *buff, size_t size, uint8_t class, uint8_t subclass, uint8_t protocol);
 
+/**
+ * Create an 256 bit key and IV using the supplied key_data. salt can be added for taste.
+ * Fills in the encryption and decryption ctx objects and returns 0 on success
+ **/
+int aes_init(unsigned char *key_data, int key_data_len, unsigned char *salt, EVP_CIPHER_CTX *e_ctx, 
+             EVP_CIPHER_CTX *d_ctx);
+/*
+ * Encrypt *len bytes of data
+ * All data going in & out is considered binary (unsigned char[])
+ */
+unsigned char *aes_encrypt(EVP_CIPHER_CTX *e, unsigned char *plaintext, int *len);
+/*
+ * Decrypt *len bytes of ciphertext
+ */
+unsigned char *aes_decrypt(EVP_CIPHER_CTX *e, unsigned char *ciphertext, int *len);
 #endif /* __USBIP_COMMON_H */

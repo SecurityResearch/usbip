@@ -37,7 +37,9 @@
 static const char usbip_detach_usage_string[] =
 	"usbip detach <args>\n"
 	"    -p, --port=<port>    " USBIP_VHCI_DRV_NAME
-	" port the device is on\n";
+	" port the device is on\n"
+    "    -u, --userid=<userid>   The User ID of the client\n"
+    "    -w, --passwd=<password> Password of user to authenticate\n";
 
 void usbip_detach_usage(void)
 {
@@ -66,68 +68,103 @@ int get_imported_dev_addr(int rhport,char *host,char *busid)
   
 }
 
-static int release_busid(char *host,char *busid)
+static int release_busid(char *host,char *busid,char *userid, char *passwd)
 {
-  int rc = 0;
-  struct op_import_request request;
-  struct op_import_reply   reply;
-  uint16_t code = OP_REP_RELEASE;
-  int sockfd;
+    int rc = 0;
+    struct op_import_request request;
+    struct op_import_reply   reply;
+    unsigned char crypt_reply[sizeof(reply)+AES_BLOCK_SIZE], *decrypt_reply;
+    uint16_t code = OP_REP_RELEASE;
+    int sockfd;
+    //char *pwd=passwd;/***/
+    /* "opaque" encryption, decryption ctx structures that libcrypto uses to record
+       status of enc/dec operations */
+    EVP_CIPHER_CTX en, de;
+    
+    /* 8 bytes to salt the key_data during key generation. This is an example of
+       compiled in salt. We just read the bit pattern created by these two 4 byte 
+       integers on the stack as 64 bits of contigous salt material - 
+       ofcourse this only works if sizeof(int) >= 4 */
+    unsigned int salt[] = {12345, 54321};
+    unsigned char *key_data;
+    unsigned char *cipher_busid;
+    int key_data_len, input_len;
 
-  info("Releasing port %s at host %s\n", busid, host);
-  sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
-  if (sockfd < 0) {
-    err("tcp connect");
-    return -1;
-  }
+    /* the key_data is read from the argument list */
+    key_data = (unsigned char *)passwd;
+    key_data_len = strlen(passwd);
+    /* gen key and iv. init the cipher ctx object */
+    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+        printf("Couldn't initialize AES cipher\n");
+        return -1;
+    }
 
-  memset(&request, 0, sizeof(request));
-  memset(&reply, 0, sizeof(reply));
+    info("Releasing port %s at host %s\n", busid, host);
+    sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+    if (sockfd < 0) {
+        err("tcp connect");
+        return -1;
+    }
 
-  /* send a request */
-  rc = usbip_net_send_op_common(sockfd, OP_REQ_RELEASE, 0);
-  if (rc < 0) {
-    err("send op_common");
-    return -1;
-  }
+    memset(&request, 0, sizeof(request));
+    memset(&reply, 0, sizeof(reply));
 
-  strncpy(request.busid, busid, SYSFS_BUS_ID_SIZE-1);
+    /* send a request */
+    rc = usbip_net_send_op_common(sockfd, OP_REQ_RELEASE, 0);
+    if (rc < 0) {
+        err("send op_common");
+        return -1;
+    }
 
-  PACK_OP_IMPORT_REQUEST(0, &request);
+    input_len = strlen(busid)+1;
+    cipher_busid = aes_encrypt(&en, (unsigned char *)busid, &input_len);
 
-  rc = usbip_net_send(sockfd, (void *) &request, sizeof(request));
-  if (rc < 0) {
-    err("send op_import_request");
-    return -1;
-  }
-
-  /* recieve a reply */
-  rc = usbip_net_recv_op_common(sockfd, &code);
-  if (rc < 0) {
-    err("recv op_common");
-    return -1;
-  }
-
-  rc = usbip_net_recv(sockfd, (void *) &reply, sizeof(reply));
-  if (rc < 0) {
-    err("recv op_import_reply");
-    return -1;
-  }
-
-  PACK_OP_IMPORT_REPLY(0, &reply);
-
-  /* check the reply */
-  if (strncmp(reply.udev.busid, busid, SYSFS_BUS_ID_SIZE)) {
-    err("recv different busid %s", reply.udev.busid);
-    return -1;
-  }
-
-  info("Releasing port %s at host %s\n", busid, host);
+	memcpy(request.busid, cipher_busid, input_len+AES_BLOCK_SIZE);
+    free(cipher_busid);
+    strncpy(request.userid, userid, SYSFS_BUS_ID_SIZE-1);
   
-  return rc;
+
+    PACK_OP_IMPORT_REQUEST(0, &request);
+
+    rc = usbip_net_send(sockfd, (void *) &request, sizeof(request));
+    if (rc < 0) {
+        err("send op_import_request");
+        return -1;
+    }
+
+    /* recieve a reply */
+    rc = usbip_net_recv_op_common(sockfd, &code);
+    if (rc < 0) {
+        err("recv op_common");
+        return -1;
+    }
+
+	rc = usbip_net_recv(sockfd, (void *) &crypt_reply, sizeof(reply)+AES_BLOCK_SIZE);
+    //rc = usbip_net_recv(sockfd, (void *) &reply, sizeof(reply));
+    if (rc < 0) {
+        err("recv op_import_reply");
+        return -1;
+    }
+
+    input_len = sizeof(reply);
+    decrypt_reply = aes_decrypt(&de, crypt_reply, &input_len);
+    memcpy(&reply,decrypt_reply,sizeof(reply));
+    free(decrypt_reply);
+
+    PACK_OP_IMPORT_REPLY(0, &reply);
+
+    /* check the reply */
+    if (strncmp(reply.udev.busid, busid, SYSFS_BUS_ID_SIZE)) {
+        err("recv different busid %s", reply.udev.busid);
+        return -1;
+    }
+
+    info("Releasing port %s at host %s\n", busid, host);
+  
+    return rc;
 }
 
-static int detach_port(char *port)
+static int detach_port(char *port,char *userid, char *passwd)
 {
 	int ret;
 	uint8_t portnum;
@@ -155,7 +192,7 @@ static int detach_port(char *port)
 		ret = -1;
 		goto done;
 	}
-	ret=release_busid(host,busid);
+	ret=release_busid(host,busid,userid,passwd);
 	if (ret < 0){
 		ret = -1;
 		goto done;
@@ -173,8 +210,13 @@ int usbip_detach(int argc, char *argv[])
 {
 	static const struct option opts[] = {
 		{ "port", required_argument, NULL, 'p' },
+		{ "userid", required_argument, NULL, 'u' },
+		{ "passwd", required_argument, NULL, 'w' },
 		{ NULL, 0, NULL, 0 }
 	};
+    char *userid= NULL;
+    char *passwd=NULL;
+    char *port=NULL;
 	int opt;
 	int ret = -1;
 
@@ -186,13 +228,21 @@ int usbip_detach(int argc, char *argv[])
 
 		switch (opt) {
 		case 'p':
-			ret = detach_port(optarg);
-			goto out;
+            port = optarg;
+			break;
+		case 'u':
+			userid = optarg;
+			break;
+		case 'w':
+			passwd = optarg;
+			break;
 		default:
 			goto err_out;
 		}
 	}
 
+    ret = detach_port(port,userid,passwd);
+    goto out;
 err_out:
 	usbip_detach_usage();
 out:

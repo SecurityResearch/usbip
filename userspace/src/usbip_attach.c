@@ -35,8 +35,10 @@
 
 static const char usbip_attach_usage_string[] =
 	"usbip attach <args>\n"
-	"    -h, --host=<host>      The machine with exported USB devices\n"
-	"    -b, --busid=<busid>    Busid of the device on <host>\n";
+	"    -h, --host=<host>       The machine with exported USB devices\n"
+	"    -b, --busid=<busid>     Busid of the device on <host>\n"
+    "    -u, --userid=<userid>   The User ID of the client\n"
+    "    -p, --passwd=<password> Password of user to authenticate\n";
 
 void usbip_attach_usage(void)
 {
@@ -114,11 +116,32 @@ static int query_import_device(int sockfd, char *busid, char *id, char *passwd)
 	int rc;
 	struct op_import_request request;
 	struct op_import_reply   reply;
+    unsigned char crypt_reply[sizeof(reply)+AES_BLOCK_SIZE], *decrypt_reply;
 	uint16_t code = OP_REP_IMPORT;
-    char *pwd=passwd;/***/
-    memset(pwd,0,strlen(passwd));
-	memset(&request, 0, sizeof(request));
+    //char *pwd=passwd;/***/
+    /* "opaque" encryption, decryption ctx structures that libcrypto uses to record
+       status of enc/dec operations */
+    EVP_CIPHER_CTX en, de;
+    
+    /* 8 bytes to salt the key_data during key generation. This is an example of
+       compiled in salt. We just read the bit pattern created by these two 4 byte 
+       integers on the stack as 64 bits of contigous salt material - 
+       ofcourse this only works if sizeof(int) >= 4 */
+    unsigned int salt[] = {12345, 54321};
+    unsigned char *key_data;
+    unsigned char *cipher_busid;
+    int key_data_len, input_len;
+    //memset(pwd,0,strlen(passwd));
+    memset(&request, 0, sizeof(request));
 	memset(&reply, 0, sizeof(reply));
+    /* the key_data is read from the argument list */
+    key_data = (unsigned char *)passwd;
+    key_data_len = strlen(passwd);
+    /* gen key and iv. init the cipher ctx object */
+    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+        printf("Couldn't initialize AES cipher\n");
+        return -1;
+    }
 
 	/* send a request */
 	rc = usbip_net_send_op_common(sockfd, OP_REQ_IMPORT, 0);
@@ -127,7 +150,11 @@ static int query_import_device(int sockfd, char *busid, char *id, char *passwd)
 		return -1;
 	}
 
-	strncpy(request.busid, busid, SYSFS_BUS_ID_SIZE-1);
+    input_len = strlen(busid)+1;
+    cipher_busid = aes_encrypt(&en, (unsigned char *)busid, &input_len);
+
+	memcpy(request.busid, cipher_busid, input_len+AES_BLOCK_SIZE);
+    free(cipher_busid);
 	strncpy(request.userid, id, SYSFS_BUS_ID_SIZE-1);
 
 	PACK_OP_IMPORT_REQUEST(0, &request);
@@ -145,11 +172,15 @@ static int query_import_device(int sockfd, char *busid, char *id, char *passwd)
 		return -1;
 	}
 
-	rc = usbip_net_recv(sockfd, (void *) &reply, sizeof(reply));
+	rc = usbip_net_recv(sockfd, (void *) &crypt_reply, sizeof(reply)+AES_BLOCK_SIZE);
 	if (rc < 0) {
 		err("recv op_import_reply");
 		return -1;
 	}
+    input_len = sizeof(reply);
+    decrypt_reply = aes_decrypt(&de, crypt_reply, &input_len);
+    memcpy(&reply,decrypt_reply,sizeof(reply));
+    free(decrypt_reply);
 
 	PACK_OP_IMPORT_REPLY(0, &reply);
 

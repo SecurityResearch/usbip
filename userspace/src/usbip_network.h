@@ -66,7 +66,7 @@ struct op_devinfo_reply {
 #define OP_REQ_IMPORT	(OP_REQUEST | OP_IMPORT)
 #define OP_REP_IMPORT   (OP_REPLY   | OP_IMPORT)
 struct op_import_request {
-	char busid[SYSFS_BUS_ID_SIZE];
+	unsigned char busid[SYSFS_BUS_ID_SIZE+AES_BLOCK_SIZE];
     char userid[SYSFS_BUS_ID_SIZE];
 } __attribute__((packed));
 
