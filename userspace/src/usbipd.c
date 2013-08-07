@@ -200,18 +200,42 @@ static int recv_request_import(int sockfd)
  */
 static int recv_request_release(int sockfd)
 {
-	struct op_release_request req;
+	struct op_import_request req;
 	struct op_common reply;
 	struct usbip_exported_device *edev;
 	struct usbip_usb_device pdu_udev;
+    /* "opaque" encryption, decryption ctx structures that libcrypto uses to record
+       status of enc/dec operations */
+    EVP_CIPHER_CTX en, de;
+
+    /* 8 bytes to salt the key_data during key generation. This is an example of
+       compiled in salt. We just read the bit pattern created by these two 4 byte 
+       integers on the stack as 64 bits of contigous salt material - 
+       ofcourse this only works if sizeof(int) >= 4 */
+    unsigned int salt[] = {12345, 54321};
+    unsigned char *key_data;
+    int key_data_len,len;
+    char *busid;
+    unsigned char *ciphertext;
 	int found = 0;
 	int error = 0;
 	int rc;
-
+    int ret=0;
     unsigned int busnum,portnum;
 
 	memset(&req, 0, sizeof(req));
 	memset(&reply, 0, sizeof(reply));
+
+    /* the key_data is read from the argument list */
+    key_data = (unsigned char *)"roshan";
+    key_data_len = strlen("roshan");
+  
+
+    /* gen key and iv. init the cipher ctx object */
+    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+        printf("Couldn't initialize AES cipher\n");
+        return -1;
+    }
 
 	rc = usbip_net_recv(sockfd, &req, sizeof(req));
 	if (rc < 0) {
@@ -219,13 +243,18 @@ static int recv_request_release(int sockfd)
 		return -1;
 	}
 	PACK_OP_RELEASE_REQUEST(0, &req);
-    sscanf(req.busid,"%u-%u",&busnum,&portnum);
+    len = SYSFS_BUS_ID_SIZE;
+    busid = (char *)aes_decrypt(&de, req.busid, &len);
+
+    printf("Received request from user %s for bus %s\n",req.userid,busid);
+
+    sscanf(busid,"%u-%u",&busnum,&portnum);
     info("Releasing port %s\n",req.busid);
 	dlist_for_each_data(host_driver->edev_list, edev,
 			    struct usbip_exported_device) {
 		//if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
         if(edev->udev.busnum == busnum){
-			info("found requested device: %s", req.busid);
+			info("found requested device: %s", busid);
 			found = 1;
 			break;
 		}
@@ -237,11 +266,11 @@ static int recv_request_release(int sockfd)
 
 		/* unexport device needs a TCP/IP socket descriptor */
 		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
-		rc = usbip_host_unexport_device(edev, req.busid, sockfd);
+		rc = usbip_host_unexport_device(edev, busid, sockfd);
 		if (rc < 0)
 			error = 1;
 	} else {
-		err("requested device not found: %s", req.busid);
+		err("requested device not found: %s", busid);
 		error = 1;
 	}
 
@@ -249,27 +278,37 @@ static int recv_request_release(int sockfd)
 				      (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
 		err("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
-		return -1;
+		ret= -1;
+        goto out;
 	}
 
 	if (error) {
 		err("release request busid %s: failed", req.busid);
-		return -1;
+		ret= -1;
+        goto out;
 	}
 
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 	usbip_net_pack_usb_device(1, &pdu_udev);
-    strncpy(pdu_udev.busid,req.busid,SYSFS_BUS_ID_SIZE);
+    strncpy(pdu_udev.busid,busid,SYSFS_BUS_ID_SIZE);
+    len = sizeof(pdu_udev);
+    ciphertext = aes_encrypt(&en, (unsigned char *)(&pdu_udev), &len);
+	rc = usbip_net_send(sockfd, ciphertext, sizeof(pdu_udev)+AES_BLOCK_SIZE);
+    free(ciphertext);
 
-	rc = usbip_net_send(sockfd, &pdu_udev, sizeof(pdu_udev));
 	if (rc < 0) {
 		err("usbip_net_send failed: devinfo");
-		return -1;
+		ret= -1;
+        goto out;
 	}
 
 	info("release request busid %s: complete", req.busid);
-
-	return 0;
+    ret = 0;
+ out:
+    if(busid != NULL){
+        free(busid);
+    }
+    return ret;
 }
 
 static int send_reply_devlist(int connfd)

@@ -88,7 +88,8 @@ struct op_import_reply {
 #define OP_REQ_RELEASE	 (OP_REQUEST | OP_RELEASE)
 #define OP_REP_RELEASE   (OP_REPLY   | OP_RELEASE)
 struct op_release_request {
-	char busid[SYSFS_BUS_ID_SIZE];
+	unsigned char busid[SYSFS_BUS_ID_SIZE+AES_BLOCK_SIZE];
+    char userid[SYSFS_BUS_ID_SIZE];
 } __attribute__((packed));
 
 struct op_release_reply {
