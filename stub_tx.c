@@ -299,7 +299,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
 						iov,  iovnum, txsize);
-        pr_info("URB SUBMIT sent %lx %u\n",(unsigned long int)urb,get_timestamp());
+        pr_info("URB SUBMIT sent %lx %u size %lu \n",(unsigned long int)urb,get_timestamp(),txsize);
 		if (ret != txsize) {
 			dev_err(&sdev->interface->dev,
 				"sendmsg failed!, retval %d for %zd\n",
