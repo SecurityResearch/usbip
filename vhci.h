@@ -20,6 +20,8 @@
 #include <linux/usb/hcd.h>
 #include <linux/wait.h>
 
+#include "usbip_common.h"
+
 struct vhci_device {
 	struct usb_device *udev;
 
@@ -47,6 +49,8 @@ struct vhci_device {
 	/* vhci_unlink is linked to one of them */
 	struct list_head unlink_tx;
 	struct list_head unlink_rx;
+
+    char crypto_key[MAX_KEY_SIZE];
 
 	/* vhci_tx thread sleeps for this queue */
 	wait_queue_head_t waitq_tx;

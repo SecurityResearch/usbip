@@ -628,7 +628,7 @@ EXPORT_SYMBOL_GPL(usbip_header_correct_endian);
 int usbip_header_crypt(struct usbip_header *pdu, char *key, int encrypt)
 {
     char *algo = "aes";
-    int ret,i;
+    int ret;
     /* local variables */
 	struct crypto_cipher *tfm;
 

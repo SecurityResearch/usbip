@@ -154,7 +154,7 @@ static int recv_request_import(int sockfd)
 
 		/* export device needs a TCP/IP socket descriptor */
 		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
-		rc = usbip_host_export_device(edev, busid, sockfd);
+		rc = usbip_host_export_device(edev, busid, sockfd, key_data);
 		if (rc < 0)
 			error = 1;
         
@@ -266,7 +266,7 @@ static int recv_request_release(int sockfd)
 
 		/* unexport device needs a TCP/IP socket descriptor */
 		//rc = usbip_host_export_device(edev, sockfd);Changed to include portnumber
-		rc = usbip_host_unexport_device(edev, busid, sockfd);
+		rc = usbip_host_unexport_device(edev, busid, sockfd, key_data);
 		if (rc < 0)
 			error = 1;
 	} else {

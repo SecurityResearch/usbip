@@ -27,6 +27,8 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 
+#include "usbip_common.h"
+
 #define STUB_BUSID_OTHER 0
 #define STUB_BUSID_REMOV 1
 #define STUB_BUSID_ADDED 2
@@ -59,7 +61,7 @@ struct stub_device {
 	struct list_head unlink_tx;
 	struct list_head unlink_free;
 
-    char crypto_key[16];
+    char crypto_key[MAX_KEY_SIZE];
 	wait_queue_head_t tx_waitq;
 };
 

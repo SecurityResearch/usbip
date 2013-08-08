@@ -46,7 +46,7 @@
 #endif
 
 
-#define	KEY_SIZE	16
+#define	MAX_KEY_SIZE	16
 
 #define FILL_SG(sg,ptr,len)	do { (sg)->page = virt_to_page(ptr); (sg)->offset = offset_in_page(ptr); (sg)->length = len; } while (0)
 

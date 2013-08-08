@@ -80,7 +80,7 @@ static int record_connection(char *host, char *port, char *busid, int rhport)
 	return 0;
 }
 
-static int import_device(int sockfd, struct usbip_usb_device *udev)
+static int import_device(int sockfd, struct usbip_usb_device *udev, char *passwd)
 {
 	int rc;
 	int port;
@@ -99,7 +99,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 	}
 
 	rc = usbip_vhci_attach_device(port, sockfd, udev->busnum,
-				      udev->devnum, udev->speed);
+                                  udev->devnum, udev->speed, passwd);
 	if (rc < 0) {
 		err("import device");
 		usbip_vhci_driver_close();
@@ -191,7 +191,7 @@ static int query_import_device(int sockfd, char *busid, char *id, char *passwd)
 	}
 
 	/* import a device */
-	return import_device(sockfd, &reply.udev);
+	return import_device(sockfd, &reply.udev, passwd);
 }
 
 static int attach_device(char *host, char *busid, char *userid, char *passwd)

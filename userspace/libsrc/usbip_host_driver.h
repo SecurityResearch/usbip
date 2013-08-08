@@ -42,8 +42,8 @@ int usbip_host_driver_open(void);
 void usbip_host_driver_close(void);
 
 int usbip_host_refresh_device_list(void);
-int usbip_host_export_device(struct usbip_exported_device *edev, char *,int);
-int usbip_host_unexport_device(struct usbip_exported_device *edev, char *,int);
+int usbip_host_export_device(struct usbip_exported_device *edev, char *,int,unsigned char *);
+int usbip_host_unexport_device(struct usbip_exported_device *edev, char *,int, unsigned char *);
 struct usbip_exported_device *usbip_host_get_device(int num);
 
 #endif /* __USBIP_HOST_DRIVER_H */

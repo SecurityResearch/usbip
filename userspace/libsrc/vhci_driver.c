@@ -462,7 +462,7 @@ int usbip_vhci_get_free_port(void)
 }
 
 int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
-		uint32_t speed) {
+                              uint32_t speed, char *key) {
 	struct sysfs_attribute *attr_attach;
 	char buff[200]; /* what size should be ? */
 	int ret;
@@ -474,8 +474,8 @@ int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
 		return -1;
 	}
 
-	snprintf(buff, sizeof(buff), "%u %u %u %u",
-			port, sockfd, devid, speed);
+	snprintf(buff, sizeof(buff), "%u %u %u %u %s",
+             port, sockfd, devid, speed,key);
 	dbg("writing: %s", buff);
 
 	ret = sysfs_write_attribute(attr_attach, buff, strlen(buff));
@@ -496,11 +496,11 @@ static unsigned long get_devid(uint8_t busnum, uint8_t devnum)
 
 /* will be removed */
 int usbip_vhci_attach_device(uint8_t port, int sockfd, uint8_t busnum,
-		uint8_t devnum, uint32_t speed)
+                             uint8_t devnum, uint32_t speed, char *key)
 {
 	int devid = get_devid(busnum, devnum);
 
-	return usbip_vhci_attach_device2(port, sockfd, devid, speed);
+	return usbip_vhci_attach_device2(port, sockfd, devid, speed, key);
 }
 
 int usbip_vhci_detach_device(uint8_t port)
