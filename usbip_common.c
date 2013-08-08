@@ -628,12 +628,18 @@ EXPORT_SYMBOL_GPL(usbip_header_correct_endian);
 int usbip_header_crypt(struct usbip_header *pdu, char *key, int encrypt)
 {
     char *algo = "aes";
-    int ret;
+    int ret,i;
     /* local variables */
 	struct crypto_cipher *tfm;
 
     if(key==NULL)
         return 1;
+
+    printk("Key: ");
+    for (i = 0 ; i < 16 ; i++){
+      printk("%02x ", (unsigned char)key[i]);
+    }
+    printk("\n");
     tfm = crypto_alloc_cipher("aes", 4, CRYPTO_ALG_ASYNC);//crypto_alloc_tfm (algo, mode);
     if (tfm == NULL) {
 		printk("failed to load transform for %s \n", algo);
@@ -645,21 +651,21 @@ int usbip_header_crypt(struct usbip_header *pdu, char *key, int encrypt)
             printk(KERN_ERR "setkey() failed flags=%x\n", crypto_cipher_tfm(tfm)->crt_flags);
             
         }else{
-            /*printk("Non %s: ",encrypt?"Encrypted":"Decrypted");
+            printk("Non %s: ",encrypt?"Encrypted":"Decrypted");
             for (i = 0 ; i < 16 ; i++){
                 printk("%02x ", (unsigned char)data[i]);
             }
-            printk("\n");*/
+            printk("\n");
             if(encrypt)
                 crypto_cipher_encrypt_one(tfm, data, data);
             else
                 crypto_cipher_decrypt_one(tfm, data, data);
             
-            /*printk("%s: ",encrypt?"Encrypted":"Decrypted");
+            printk("%s: ",encrypt?"Encrypted":"Decrypted");
             for (i = 0 ; i < 16 ; i++){
                 printk("%02x ", (unsigned char)data[i]);
             }
-            printk("\n");*/
+            printk("\n");
         }
         crypto_free_cipher(tfm);
 
