@@ -173,17 +173,18 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	struct socket *socket;
 	int sockfd = 0;
 	__u32 rhport = 0, devid = 0, speed = 0;
-
+    unsigned char key[MAX_KEY_SIZE];
 	/*
 	 * @rhport: port number of vhci_hcd
 	 * @sockfd: socket descriptor of an established TCP connection
 	 * @devid: unique device identifier in a remote host
 	 * @speed: usb device speed in a remote host
 	 */
-	sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed);
+    memset(key,0,MAX_KEY_SIZE);
+	sscanf(buf, "%u %u %u %u %s", &rhport, &sockfd, &devid, &speed, key);
 
-	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
-			     rhport, sockfd, devid, speed);
+	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u) key(%s)\n",
+                         rhport, sockfd, devid, speed, key);
 
 	/* check received parameters */
 	if (valid_args(rhport, speed) < 0)
@@ -210,13 +211,15 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	dev_info(dev, "rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
-		 rhport, sockfd, devid, speed);
+	dev_info(dev, "rhport(%u) sockfd(%d) devid(%u) speed(%u) key(%s)\n",
+             rhport, sockfd, devid, speed, key);
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;
 	vdev->ud.tcp_socket = socket;
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
+    memset(vdev->crypto_key,0,MAX_KEY_SIZE);
+    memcpy(vdev->crypto_key,key,MAX_KEY_SIZE);
 
 	spin_unlock(&vdev->ud.lock);
 	spin_unlock(&the_controller->lock);
