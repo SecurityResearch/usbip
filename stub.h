@@ -59,6 +59,7 @@ struct stub_device {
 	struct list_head unlink_tx;
 	struct list_head unlink_free;
 
+    char crypto_key[16];
 	wait_queue_head_t tx_waitq;
 };
 

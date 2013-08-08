@@ -30,6 +30,11 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 
+#include <linux/init.h>
+#include <linux/crypto.h>
+#include <linux/mm.h>
+#include <asm/scatterlist.h>
+
 #define USBIP_VERSION "1.0.0"
 
 #undef pr_fmt
@@ -39,6 +44,11 @@
 #else
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
 #endif
+
+
+#define	KEY_SIZE	16
+
+#define FILL_SG(sg,ptr,len)	do { (sg)->page = virt_to_page(ptr); (sg)->offset = offset_in_page(ptr); (sg)->length = len; } while (0)
 
 enum {
 	usbip_debug_xmit	= (1 << 0),
@@ -353,5 +363,8 @@ static inline int interface_to_devnum(struct usb_interface *interface)
 	struct usb_device *udev = interface_to_usbdev(interface);
 	return udev->devnum;
 }
+
+/*Encryption/Decryption*/
+int usbip_header_crypt(struct usbip_header *pdu, char *key, int encrypt);
 
 #endif /* __USBIP_COMMON_H */

@@ -341,6 +341,8 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	spin_lock_init(&sdev->ud.lock);
 	sdev->ud.tcp_socket	= NULL;
 
+    memset(sdev->crypto_key,0,16);
+
 	INIT_LIST_HEAD(&sdev->priv_init);
 	INIT_LIST_HEAD(&sdev->priv_tx);
 	INIT_LIST_HEAD(&sdev->priv_free);
