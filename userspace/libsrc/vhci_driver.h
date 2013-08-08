@@ -56,11 +56,11 @@ int  usbip_vhci_refresh_device_list(void);
 
 int usbip_vhci_get_free_port(void);
 int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
-		uint32_t speed);
+                              uint32_t speed, char *key);
 
 /* will be removed */
 int usbip_vhci_attach_device(uint8_t port, int sockfd, uint8_t busnum,
-		uint8_t devnum, uint32_t speed);
+                             uint8_t devnum, uint32_t speed, char *key);
 
 int usbip_vhci_detach_device(uint8_t port);
 void usbip_vhci_show_port_status(void);

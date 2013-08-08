@@ -367,7 +367,7 @@ int usbip_host_refresh_device_list(void)
 	return 0;
 }
 
-int usbip_host_export_device(struct usbip_exported_device *edev, char *busid, int sockfd)
+int usbip_host_export_device(struct usbip_exported_device *edev, char *busid, int sockfd, unsigned char *passwd)
 {
 	char attr_name[2][15] = {"manage_port","usbip_sockfd"};
 	char attr_path[SYSFS_PATH_MAX];
@@ -410,7 +410,7 @@ int usbip_host_export_device(struct usbip_exported_device *edev, char *busid, in
 		return -1;
 	}
 
-	snprintf(sockfd_buff, sizeof(sockfd_buff), "add %d %d-%d\n", sockfd,edev->udev.busnum,portnum);
+	snprintf(sockfd_buff, sizeof(sockfd_buff), "add %d %d-%d %s\n", sockfd,edev->udev.busnum,portnum,passwd);
 	dbg("write: %s", sockfd_buff);
 
     sleep(2);
@@ -463,7 +463,7 @@ err_write_sockfd:
 	return ret;
 }
 
-int usbip_host_unexport_device(struct usbip_exported_device *edev, char *busid, int sockfd)
+int usbip_host_unexport_device(struct usbip_exported_device *edev, char *busid, int sockfd, unsigned char *passwd)
 {
 	char attr_name[] = "manage_port";
 	char attr_path[SYSFS_PATH_MAX];
@@ -491,7 +491,7 @@ int usbip_host_unexport_device(struct usbip_exported_device *edev, char *busid, 
 		return -1;
 	}
 
-	snprintf(sockfd_buff, sizeof(sockfd_buff), "del %d %d-%d\n", sockfd,edev->udev.busnum,portnum);
+	snprintf(sockfd_buff, sizeof(sockfd_buff), "del %d %d-%d %s\n", sockfd,edev->udev.busnum,portnum,passwd);
 	dbg("write: %s", sockfd_buff);
 
 	ret = sysfs_write_attribute(attr, sockfd_buff, strlen(sockfd_buff));

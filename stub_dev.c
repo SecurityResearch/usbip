@@ -157,8 +157,18 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 {
 	struct stub_device *sdev = dev_get_drvdata(dev);
 	int sockfd = 0;
-	sscanf(buf, "%d", &sockfd);
+    struct socket_info_t *socket_info;
+	const char *udev_busid = dev_name(sdev->interface->dev.parent);
 
+	sscanf(buf, "%d", &sockfd);
+    socket_info = usb_get_socket_info(sdev->udev);
+    memset(sdev->crypto_key,0,MAX_KEY_SIZE);
+    memcpy(sdev->crypto_key,socket_info->key,strnlen(socket_info->key,MAX_KEY_SIZE));
+    pr_info("ROSHAN_HUB %p socket returned\n",socket_info);
+    if(socket_info == NULL){
+        pr_info("ROSHAN_HUB Not registered %s\n",udev_busid);
+        return -ENODEV;
+    }
     return add_sockfd(sdev, sockfd);
 }
 
@@ -207,7 +217,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * sk_wait_data returned though stub_rx thread was already finished by
 	 * step 1?
 	 */
-    sdev->ud.tcp_socket = usb_get_socket(sdev->udev);
+    sdev->ud.tcp_socket = (usb_get_socket_info(sdev->udev))->sock;
 	if (ud->tcp_socket) {
 		dev_dbg(&sdev->udev->dev, "shutdown tcp_socket %p\n",
 			ud->tcp_socket);
@@ -341,6 +351,8 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	spin_lock_init(&sdev->ud.lock);
 	sdev->ud.tcp_socket	= NULL;
 
+    memset(sdev->crypto_key,0,16);
+
 	INIT_LIST_HEAD(&sdev->priv_init);
 	INIT_LIST_HEAD(&sdev->priv_tx);
 	INIT_LIST_HEAD(&sdev->priv_free);
@@ -391,8 +403,9 @@ static int stub_probe(struct usb_interface *interface,
 	const char *udev_busid = dev_name(interface->dev.parent);
 	int err = 0;
 	struct bus_id_priv *busid_priv;
-    struct socket *sock;
+    struct socket_info_t *socket_info;
     enum usb_hub_port_status port_status;
+    struct socket *sock;
 	dev_dbg(&interface->dev, "Enter\n");
     
     port_status = usb_get_port_status(udev);
@@ -487,12 +500,15 @@ static int stub_probe(struct usb_interface *interface,
 		return err;
 	}
 	busid_priv->status = STUB_BUSID_ALLOC;
-    sock = usb_get_socket(udev);
-    pr_info("ROSHAN_HUB %p socket returned\n",sock);
-    if(sock == NULL){
+    socket_info = usb_get_socket_info(udev);
+    sock = socket_info->sock;
+    memset(sdev->crypto_key,0,MAX_KEY_SIZE);
+    memcpy(sdev->crypto_key,socket_info->key,strnlen(socket_info->key,MAX_KEY_SIZE));
+    pr_info("ROSHAN_HUB socket returned %s \n",socket_info->key);
+    if(socket_info == NULL){
         pr_info("ROSHAN_HUB Not registered %s\n",udev_busid);
     }else{
-        err = add_socket(sdev,sock);
+        err = add_socket(sdev,socket_info->sock);
     }
 
 	if (err<0) {
