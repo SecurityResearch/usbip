@@ -396,7 +396,7 @@ static int stub_device_free(struct stub_device *sdev)
  * (2.6.19.2).
  */
 static int stub_probe(struct usb_interface *interface,
-		      const struct usb_device_id *id)
+                      const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct stub_device *sdev = NULL;
@@ -411,17 +411,17 @@ static int stub_probe(struct usb_interface *interface,
     port_status = usb_get_port_status(udev);
     if(port_status != USB_PORT_REMOTED){
         dev_info(&interface->dev, "%s is not exportable... "
-			 "skip!\n", udev_busid);
+                 "skip!\n", udev_busid);
 		return -ENODEV;
     }else{
         dev_info(&interface->dev, "%s is  exportable... "
-			 , udev_busid);
+                 , udev_busid);
     }
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {
 		dev_info(&interface->dev, "%s is not in match_busid table... "
-			 "skip!\n", udev_busid);
+                 "skip!\n", udev_busid);
 
 		/*
 		 * Return value should be ENODEV or ENOXIO to continue trying
@@ -434,13 +434,13 @@ static int stub_probe(struct usb_interface *interface,
 	/* check we should claim or not by busid_table */
 	if (udev->descriptor.bDeviceClass == USB_CLASS_HUB) {
 		dev_dbg(&udev->dev, "%s is a usb hub device... skip!\n",
-			 udev_busid);
+                udev_busid);
 		return -ENODEV;
 	}
 
 	if (!strcmp(udev->bus->bus_name, "vhci_hcd")) {
 		dev_dbg(&udev->dev, "%s is attached on vhci_hcd... skip!\n",
-			 udev_busid);
+                udev_busid);
 		return -ENODEV;
 	}
 
@@ -451,9 +451,9 @@ static int stub_probe(struct usb_interface *interface,
 
 		busid_priv->interf_count++;
 		dev_info(&interface->dev, "usbip-host: register new interface "
-			 "(bus %u dev %u ifn %u)\n",
-			 udev->bus->busnum, udev->devnum,
-			 interface->cur_altsetting->desc.bInterfaceNumber);
+                 "(bus %u dev %u ifn %u)\n",
+                 udev->bus->busnum, udev->devnum,
+                 interface->cur_altsetting->desc.bInterfaceNumber);
 
 		/* set private data to usb_interface */
 		usb_set_intfdata(interface, sdev);
@@ -461,7 +461,7 @@ static int stub_probe(struct usb_interface *interface,
 		err = stub_add_files(&interface->dev);
 		if (err) {
 			dev_err(&interface->dev, "stub_add_files for %s\n",
-				udev_busid);
+                    udev_busid);
 			usb_set_intfdata(interface, NULL);
 			busid_priv->interf_count--;
 			return err;
@@ -477,8 +477,8 @@ static int stub_probe(struct usb_interface *interface,
 		return -ENOMEM;
 
 	dev_info(&interface->dev, "usbip-host: register new device "
-		 "(bus %u dev %u ifn %u)\n", udev->bus->busnum, udev->devnum,
-		 interface->cur_altsetting->desc.bInterfaceNumber);
+             "(bus %u dev %u ifn %u)\n", udev->bus->busnum, udev->devnum,
+             interface->cur_altsetting->desc.bInterfaceNumber);
 
 	busid_priv->interf_count = 0;
 	busid_priv->shutdown_busid = 0;
@@ -501,13 +501,13 @@ static int stub_probe(struct usb_interface *interface,
 	}
 	busid_priv->status = STUB_BUSID_ALLOC;
     socket_info = usb_get_socket_info(udev);
-    sock = socket_info->sock;
-    memset(sdev->crypto_key,0,MAX_KEY_SIZE);
-    memcpy(sdev->crypto_key,socket_info->key,strnlen(socket_info->key,MAX_KEY_SIZE));
-    pr_info("ROSHAN_HUB socket returned %s \n",socket_info->key);
     if(socket_info == NULL){
         pr_info("ROSHAN_HUB Not registered %s\n",udev_busid);
     }else{
+        sock = socket_info->sock;
+        memset(sdev->crypto_key,0,MAX_KEY_SIZE);
+        memcpy(sdev->crypto_key,socket_info->key,strnlen(socket_info->key,MAX_KEY_SIZE));
+        pr_info("ROSHAN_HUB socket returned %s \n",socket_info->key);
         err = add_socket(sdev,socket_info->sock);
     }
 
@@ -523,10 +523,10 @@ static int stub_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
     /*if(stub_send_cmd_attach(sdev) < 0){
-        pr_info("ROSHAN_HUB attach command not sent\n");
-        return 0;
-    }
-    pr_info("ROSHAN_HUB attach command sent\n");*/
+      pr_info("ROSHAN_HUB attach command not sent\n");
+      return 0;
+      }
+      pr_info("ROSHAN_HUB attach command sent\n");*/
 	return 0;
 }
 

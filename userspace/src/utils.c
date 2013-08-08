@@ -67,7 +67,7 @@ int modify_match_busid(char *busid, int add)
 
 	rc = sysfs_write_attribute(match_busid_attr, buff, sizeof(buff));
 	if (rc < 0) {
-		dbg("failed to write match_busid: %s", strerror(errno));
+		dbg("failed to write match_busid: %s\n", strerror(errno));
 		ret = -1;
 	}
 
@@ -141,7 +141,7 @@ int modify_hub_port(char *busid, enum usb_port_status status)
     printf("Marking busid %s %s\n",busid,action[status]);
 	rc = sysfs_write_attribute(manage_port_attr, buff, sizeof(buff));
 	if (rc < 0) {
-		printf("failed to write match_busid: %s", strerror(errno));
+		printf("failed to write match_busid: %s\n", strerror(errno));
 		ret = -1;
 	}
 
@@ -186,7 +186,7 @@ int check_busid(char *busid)
 	}
 	rc = sysfs_read_attribute(match_busid_attr);
 	if (rc < 0) {
-		err("failed to read match_busid: %s", strerror(errno));
+		err("failed to read match_busid: %s\n", strerror(errno));
 		ret = -1;
 	}else{
         ret = -1;
