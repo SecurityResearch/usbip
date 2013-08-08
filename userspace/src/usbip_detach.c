@@ -221,7 +221,7 @@ int usbip_detach(int argc, char *argv[])
 	int ret = -1;
 
 	for (;;) {
-		opt = getopt_long(argc, argv, "p:", opts, NULL);
+		opt = getopt_long(argc, argv, "p:u:w:", opts, NULL);
 
 		if (opt == -1)
 			break;
@@ -241,6 +241,8 @@ int usbip_detach(int argc, char *argv[])
 		}
 	}
 
+	if (!port || !userid || !passwd)
+		goto err_out;
     ret = detach_port(port,userid,passwd);
     goto out;
 err_out:

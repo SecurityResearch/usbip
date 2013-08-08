@@ -263,7 +263,7 @@ int usbip_attach(int argc, char *argv[])
 		}
 	}
 
-	if (!host || !busid)
+	if (!host || !busid || !userid || !passwd)
 		goto err_out;
 
 	ret = attach_device(host, busid,userid, passwd);
