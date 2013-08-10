@@ -23,6 +23,17 @@
 #include "usbip_common.h"
 #include "vhci.h"
 
+static inline unsigned int get_timestamp(void)
+{
+        struct timeval tval;
+        unsigned int stamp;
+
+        do_gettimeofday(&tval);
+        stamp = tval.tv_sec & 0xFFF;    /* 2^32 = 4294967296. Limit to 4096s. */
+        stamp = stamp * 1000000 + tval.tv_usec;
+        return stamp;
+}
+
 /* get URB from transmitted urb queue. caller must hold vdev->priv_lock */
 struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum)
 {
@@ -70,6 +81,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	struct urb *urb;
 	unsigned long flags;
 
+        pr_info("ROSHAN_VHCI_RECV received at %u\n",get_timestamp());
 	spin_lock(&vdev->priv_lock);
 	urb = pickup_urb_and_free_priv(vdev, pdu->base.seqnum);
 	spin_unlock(&vdev->priv_lock);
@@ -82,6 +94,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 		return;
 	}
 
+        pr_info("ROSHAN_VHCI_RECV received and matched URB %lx at %u\n",urb,get_timestamp());
 	/* unpack the pdu to a urb */
 	usbip_pack_pdu(pdu, urb, USBIP_RET_SUBMIT, 0);
 
