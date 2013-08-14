@@ -348,7 +348,7 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
     struct usbip_header pdu_header;
 	struct kvec iov,test_iov[1];
 	int total = 0;
-    int try = 0;
+    int retry = 0;
     int txsize = 0;
 	/* for blocks of if (usbip_dbg_flag_xmit) */
 	char *bp = buf;
@@ -395,10 +395,16 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
                 pr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
-                result = kernel_sendmsg(sock, &test_msg, test_iov,
-                                     1, txsize);
+		if(retry > 3){
+                	result = kernel_sendmsg(sock, &test_msg, test_iov,
+                        	             1, txsize);
+			retry = 0;
+		}else{
+			result = txsize;
+		}
 
                 if(key != NULL && result==txsize && !kthread_should_stop()){
+			retry++;
                     continue;
                 }
                 pr_info("ROSHAN Thread stopped\n");

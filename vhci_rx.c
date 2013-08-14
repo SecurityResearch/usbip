@@ -236,7 +236,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	}
 	if (ret == 0) {
 		pr_info("ROSHAN_VHCI_RX connection closed");
-		usbip_event_add(ud, VDEV_EVENT_DOWN);
+		//usbip_event_add(ud, VDEV_EVENT_DOWN);
 		return;
 	}
 	if (ret != sizeof(pdu)) {
