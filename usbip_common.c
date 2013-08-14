@@ -395,21 +395,24 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
                 pr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
-		if(retry > 3){
-                	result = kernel_sendmsg(sock, &test_msg, test_iov,
-                        	             1, txsize);
-                        pr_info("ROSHAN test sent%d -> %d\n",result,txsize);
-			retry = 0;
-		}else{
-			result = txsize;
-		}
+                if(retry > 3){
+                	//result = kernel_sendmsg(sock, &test_msg, test_iov,
+                    //                        1, txsize);
+                    //pr_info("ROSHAN test sent%d -> %d\n",result,txsize);
+                    //retry = 0;
+                    goto err;
+                }else{
+                    //result = txsize;
+                    retry++;
+                    continue;
+                }
 
-                if(key != NULL && result==txsize && !kthread_should_stop()){
-			retry++;
+                /*if(key != NULL && result==txsize && !kthread_should_stop()){
+                    retry++;
                     continue;
                 }
                 pr_info("ROSHAN Thread stopped\n");
-                result = 0;
+                result = 0;*/
             }
 			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
 				 sock, buf, size, result, total);

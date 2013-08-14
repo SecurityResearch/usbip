@@ -252,10 +252,60 @@ static int vhci_send_cmd_detach(struct vhci_device *vdev)
 	return total_size;
 }
 
+static int vhci_send_cmd_test(struct vhci_device *vdev)
+{
+	struct vhci_unlink *unlink = NULL;
+
+	struct msghdr msg;
+	struct kvec iov[1];
+	size_t txsize;
+
+	size_t total_size = 0;
+
+	int ret;
+	struct usbip_header pdu_header;
+	
+	txsize = 0;
+	memset(&pdu_header, 0, sizeof(pdu_header));
+	memset(&msg, 0, sizeof(msg));
+	memset(&iov, 0, sizeof(iov));
+	
+	//usbip_dbg_vhci_tx("setup cmd unlink, %lu\n", unlink->seqnum);
+	
+	/* 1. setup usbip_header */
+	pdu_header.base.command = USBIP_CMD_TEST;
+	pdu_header.base.seqnum  = 0;
+	pdu_header.base.devid	= vdev->devid;
+	pdu_header.base.ep	= 0;
+	
+	usbip_header_correct_endian(&pdu_header, 1);
+    usbip_header_crypt(&pdu_header,vdev->crypto_key,1);
+	
+	iov[0].iov_base = &pdu_header;
+	iov[0].iov_len  = sizeof(pdu_header);
+	txsize += sizeof(pdu_header);
+	
+	ret = kernel_sendmsg(vdev->ud.tcp_socket, &msg, iov, 1, txsize);
+	if (ret != txsize) {
+	  pr_err("sendmsg failed!, ret=%d for %zd\n", ret,
+		 txsize);
+	  usbip_event_add(&vdev->ud, VDEV_EVENT_ERROR_TCP);
+	  return -1;
+	}
+	
+	usbip_dbg_vhci_tx("send txdata\n");
+	
+	total_size += txsize;
+
+	return total_size;
+}
+
 int vhci_tx_loop(void *data)
 {
 	struct usbip_device *ud = data;
 	struct vhci_device *vdev = container_of(ud, struct vhci_device, ud);
+    int timeout_sec, timeout;
+    timeout_sec = 2;
 
 	while (!kthread_should_stop()) {
 		if (vhci_send_cmd_submit(vdev) < 0)
@@ -264,10 +314,17 @@ int vhci_tx_loop(void *data)
 		if (vhci_send_cmd_unlink(vdev) < 0)
 			break;
 
-		wait_event_interruptible(vdev->waitq_tx,
+		timeout = wait_event_interruptible_timeout(vdev->waitq_tx,
 					 (!list_empty(&vdev->priv_tx) ||
 					  !list_empty(&vdev->unlink_tx) ||
-					  kthread_should_stop()));
+					  kthread_should_stop()), timeout_sec * HZ);
+
+        if(!timeout){
+            if (vhci_send_cmd_test(sdev) < 0){
+                pr_err("ROSHAN_VHCI error in sending test\n");
+                break;
+            }
+        }
 
 		usbip_dbg_vhci_tx("pending urbs ?, now wake up\n");
 	}
