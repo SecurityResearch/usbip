@@ -218,7 +218,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	memset(&pdu, 0, sizeof(pdu));
 
 	/* 1. receive a pdu header */
-	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu),vdev->crypto_key);
+	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
 	if (ret < 0) {
 		if (ret == -ECONNRESET)
 			pr_info("ROSHAN_VHCI_RX connection reset by peer\n");
