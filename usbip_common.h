@@ -143,6 +143,7 @@ extern struct device_attribute dev_attr_usbip_debug;
 #define USBIP_RET_ATTACH    0x0006
 #define USBIP_CMD_DETACH    0x0007
 #define USBIP_RET_DETACH    0x0008
+#define USBIP_CMD_TEST      0x0009
 
 
 #define USBIP_DIR_OUT	0x00
@@ -332,7 +333,7 @@ struct usbip_device {
 void usbip_dump_urb(struct urb *purb);
 void usbip_dump_header(struct usbip_header *pdu);
 
-int usbip_recv(struct socket *sock, void *buf, int size);
+int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *);
 struct socket *sockfd_to_socket(unsigned int sockfd);
 
 void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,

@@ -341,16 +341,34 @@ void usbip_dump_header(struct usbip_header *pdu)
 EXPORT_SYMBOL_GPL(usbip_dump_header);
 
 /* Receive data over TCP/IP. */
-int usbip_recv(struct socket *sock, void *buf, int size)
+int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 {
 	int result;
-	struct msghdr msg;
-	struct kvec iov;
+	struct msghdr msg,test_msg;
+    struct usbip_header pdu_header;
+	struct kvec iov,test_iov[1];
 	int total = 0;
-
+    int try = 0;
+    int txsize = 0;
 	/* for blocks of if (usbip_dbg_flag_xmit) */
 	char *bp = buf;
 	int osize = size;
+    memset(&pdu_header, 0, sizeof(pdu_header));
+    memset(&test_msg, 0, sizeof(test_msg));
+    memset(&test_iov, 0, sizeof(test_iov));
+
+	pdu_header.base.command	= USBIP_CMD_TEST;
+	pdu_header.base.seqnum	= 0;
+	pdu_header.base.devid	= 0;
+	pdu_header.base.ep	= 0;
+	pdu_header.base.direction = 0;
+    usbip_header_correct_endian(&pdu_header, 1);
+    if(key != NULL)
+        usbip_header_crypt(&pdu_header,key,1);
+    test_iov[0].iov_base = &pdu_header;
+    test_iov[0].iov_len  = sizeof(pdu_header);
+    txsize += sizeof(pdu_header);
+    
 
 	usbip_dbg_xmit("enter\n");
 
@@ -361,6 +379,7 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 	}
 
 	do {
+        memset(&test_msg, 0, sizeof(test_msg));
 		sock->sk->sk_allocation = GFP_NOIO;
 		iov.iov_base    = buf;
 		iov.iov_len     = size;
@@ -375,8 +394,11 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		//result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_DONTWAIT);
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
-                pr_info("ROSHAN recv timeout\n");
-                if(!kthread_should_stop()){
+                pr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
+                result = kernel_sendmsg(sock, &test_msg, test_iov,
+                                     1, txsize);
+
+                if(key != NULL && result==txsize && !kthread_should_stop()){
                     continue;
                 }
                 pr_info("ROSHAN Thread stopped\n");
@@ -759,7 +781,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 	if (!buff)
 		return -ENOMEM;
 
-	ret = usbip_recv(ud->tcp_socket, buff, size);
+	ret = usbip_recv(ud->tcp_socket, buff, size,NULL);
 	if (ret != size) {
 		dev_err(&urb->dev->dev, "recv iso_frame_descriptor, %d\n",
 			ret);
@@ -867,7 +889,7 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 	if (!(size > 0))
 		return 0;
 
-	ret = usbip_recv(ud->tcp_socket, urb->transfer_buffer, size);
+	ret = usbip_recv(ud->tcp_socket, urb->transfer_buffer, size,NULL);
 	if (ret != size) {
 		dev_err(&urb->dev->dev, "recv xbuf, %d\n", ret);
 		if (ud->side == USBIP_STUB) {

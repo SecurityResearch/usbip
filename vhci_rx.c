@@ -218,7 +218,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	memset(&pdu, 0, sizeof(pdu));
 
 	/* 1. receive a pdu header */
-	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
+	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu),vdev->crypto_key);
 	if (ret < 0) {
 		if (ret == -ECONNRESET)
 			pr_info("ROSHAN_VHCI_RX connection reset by peer\n");
@@ -273,6 +273,12 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	  usbip_event_add(ud, VDEV_EVENT_DEV_REMOVED);
 
 	  break;
+	case USBIP_CMD_TEST:
+		//usbip_event_add(ud, SDEV_EVENT_REMOVED);
+        pr_info("ROSHAN received text connection\n");
+        //usb_reset_socket(sdev->udev);
+		//usbip_event_add(ud, SDEV_EVENT_DETACHED);
+		break;
 	default:
 	  /* NOT REACHED */
 		pr_err("ROSHAN_VHCI_RX unknown pdu %u\n", pdu.base.command);
