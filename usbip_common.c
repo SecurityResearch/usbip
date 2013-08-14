@@ -398,6 +398,7 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		if(retry > 3){
                 	result = kernel_sendmsg(sock, &test_msg, test_iov,
                         	             1, txsize);
+                        pr_info("ROSHAN test sent%d -> %d\n",result,txsize);
 			retry = 0;
 		}else{
 			result = txsize;

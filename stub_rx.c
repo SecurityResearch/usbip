@@ -604,7 +604,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 	default:
 		/* NOTREACHED */
-		dev_err(dev, "unknown pdu\n");
+		dev_err(dev, "unknown pdu %d %d\n",pdu.base.command,USBIP_CMD_TEST);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		break;
 	}
