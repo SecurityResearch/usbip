@@ -283,7 +283,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	  /* NOT REACHED */
 		pr_err("ROSHAN_VHCI_RX unknown pdu %u\n", pdu.base.command);
 		usbip_dump_header(&pdu);
-		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
+		//usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		break;
 	}
 }

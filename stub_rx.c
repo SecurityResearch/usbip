@@ -605,7 +605,8 @@ static void stub_rx_pdu(struct usbip_device *ud)
 	default:
 		/* NOTREACHED */
 		dev_err(dev, "unknown pdu %d %d\n",pdu.base.command,USBIP_CMD_TEST);
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
+		//usbip_event_add(ud, SDEV_EVENT_ERROR_TCP); Ignoring unknow packets, in case some attacker purposefully trying to hack the system, the ongoing
+		//user must not pe affected. 
 		break;
 	}
 }
