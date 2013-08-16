@@ -225,8 +225,8 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 		else if (ret == -EAGAIN) {
 			/* ignore if connection was idle */
 			pr_info("ROSHAN_VHCI_RX connection timed out with pending urbs\n");
-			if (vhci_priv_tx_empty(vdev))
-				return;
+			/*if (vhci_priv_tx_empty(vdev))
+				return;*/
 		} else if (ret != -ERESTARTSYS)
 			pr_info("ROSHAN_VHCI_RX xmit failed %d\n", ret);
 		else
