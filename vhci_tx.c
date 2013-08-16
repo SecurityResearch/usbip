@@ -320,7 +320,7 @@ int vhci_tx_loop(void *data)
 					  kthread_should_stop()), timeout_sec * HZ);
 
         if(!timeout){
-            if (vhci_send_cmd_test(sdev) < 0){
+            if (vhci_send_cmd_test(vdev) < 0){
                 pr_err("ROSHAN_VHCI error in sending test\n");
                 break;
             }
