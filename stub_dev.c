@@ -210,6 +210,7 @@ static void stub_remove_files(struct device *dev)
 static void stub_shutdown_connection(struct usbip_device *ud)
 {
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
+    struct socket_info_t *socket_info = (usb_get_socket_info(sdev->udev));
 
 	/*
 	 * When removing an exported device, kernel panic sometimes occurred
@@ -217,7 +218,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * sk_wait_data returned though stub_rx thread was already finished by
 	 * step 1?
 	 */
-    sdev->ud.tcp_socket = (usb_get_socket_info(sdev->udev))->sock;
+    sdev->ud.tcp_socket = socket_info==NULL?socket_info:socket_info->sock;
 	if (ud->tcp_socket) {
 		dev_dbg(&sdev->udev->dev, "shutdown tcp_socket %p\n",
 			ud->tcp_socket);
