@@ -270,6 +270,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	  break;
 	case USBIP_CMD_DETACH:
 	  pr_info("ROSHAN_VHCI_RX Detached device received \n");
+	  vdev->ud.status     = VDEV_ST_NULL;
 	  usbip_event_add(ud, VDEV_EVENT_DEV_REMOVED);
 
 	  break;

@@ -697,7 +697,8 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 /* send unlink request here? */
 	vdev = priv->vdev;
 
-	if (!vdev->ud.tcp_socket) {
+	if (vdev->ud.status == VDEV_ST_NULL ||
+	!vdev->ud.tcp_socket) {
 		/* tcp connection is closed */
 		unsigned long flags2;
 
