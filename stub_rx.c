@@ -597,7 +597,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 	case USBIP_CMD_TEST:
 		//usbip_event_add(ud, SDEV_EVENT_REMOVED);
-        pr_info("ROSHAN received text connection\n");
+        //pr_info("ROSHAN received text connection\n");
         //usb_reset_socket(sdev->udev);
 		//usbip_event_add(ud, SDEV_EVENT_DETACHED);
 		break;

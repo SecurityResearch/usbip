@@ -394,11 +394,11 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		//result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_DONTWAIT);
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
-                pr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
+                //npr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
 		if(retry > 3){
                 	result = kernel_sendmsg(sock, &test_msg, test_iov,
                         	             1, txsize);
-                        pr_info("ROSHAN test sent%d -> %d\n",result,txsize);
+                        //pr_info("ROSHAN test sent%d -> %d\n",result,txsize);
 			retry = 0;
 		}else{
 			result = txsize;
@@ -645,6 +645,8 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		break;
 	case USBIP_RET_UNLINK:
 		correct_endian_ret_unlink(&pdu->u.ret_unlink, send);
+		break;
+	case USBIP_CMD_TEST:
 		break;
 	default:
 		/* NOT REACHED */
