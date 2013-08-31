@@ -104,10 +104,10 @@ static int import_device(int sockfd, struct usbip_usb_device *udev, char *passwd
 		return -1;
 	}
 
-    struct timeval tv;
+    //struct timeval tv;
 
-    tv.tv_sec = 3;  /* 3 Secs Timeout */
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
+    //tv.tv_sec = 3;  /* 3 Secs Timeout */
+    //setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
  
 	rc = usbip_vhci_attach_device(port, sockfd, udev->busnum,
                                   udev->devnum, udev->speed, passwd);

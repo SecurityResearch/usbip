@@ -394,7 +394,7 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		//result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_DONTWAIT);
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
-                //npr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
+                //pr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
 		if(retry > 3){
                 	result = kernel_sendmsg(sock, &test_msg, test_iov,
                         	             1, txsize);
@@ -408,7 +408,7 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 			retry++;
                     continue;
                 }
-                pr_info("ROSHAN Thread stopped\n");
+                //pr_info("ROSHAN Thread stopped\n");
                 result = 0;
             }
 			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
@@ -647,6 +647,8 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		correct_endian_ret_unlink(&pdu->u.ret_unlink, send);
 		break;
 	case USBIP_CMD_TEST:
+	case USBIP_CMD_ATTACH:
+	case USBIP_CMD_DETACH:
 		break;
 	default:
 		/* NOT REACHED */
