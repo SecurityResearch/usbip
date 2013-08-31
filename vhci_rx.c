@@ -81,7 +81,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	struct urb *urb;
 	unsigned long flags;
 
-        pr_info("ROSHAN_VHCI_RECV received at %u\n",get_timestamp());
+        //pr_info("ROSHAN_VHCI_RECV received at %u\n",get_timestamp());
 	spin_lock(&vdev->priv_lock);
 	urb = pickup_urb_and_free_priv(vdev, pdu->base.seqnum);
 	spin_unlock(&vdev->priv_lock);
@@ -94,7 +94,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 		return;
 	}
 
-        pr_info("ROSHAN_VHCI_RECV received and matched URB %lx at %u\n",urb,get_timestamp());
+        //pr_info("ROSHAN_VHCI_RECV received and matched URB %lx at %u\n",urb,get_timestamp());
 	/* unpack the pdu to a urb */
 	usbip_pack_pdu(pdu, urb, USBIP_RET_SUBMIT, 0);
 
@@ -133,7 +133,7 @@ static struct vhci_unlink *dequeue_pending_unlink(struct vhci_device *vdev,
 	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_rx, list) {
-		pr_info("unlink->seqnum %lu\n", unlink->seqnum);
+		//pr_info("unlink->seqnum %lu\n", unlink->seqnum);
 		if (unlink->seqnum == pdu->base.seqnum) {
 			usbip_dbg_vhci_rx("found pending unlink, %lu\n",
 					  unlink->seqnum);
@@ -182,7 +182,7 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 
 		/* If unlink is succeed, status is -ECONNRESET */
 		urb->status = pdu->u.ret_unlink.status;
-		pr_info("urb->status %d\n", urb->status);
+		//pr_info("urb->status %d\n", urb->status);
 
 		spin_lock_irqsave(&the_controller->lock, flags);
 		usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
@@ -236,7 +236,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	}
 	if (ret == 0) {
 		pr_info("ROSHAN_VHCI_RX connection closed");
-		//usbip_event_add(ud, VDEV_EVENT_DOWN);
+		usbip_event_add(ud, VDEV_EVENT_DOWN);
 		return;
 	}
 	if (ret != sizeof(pdu)) {
@@ -256,10 +256,10 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	switch (pdu.base.command) {
 	case USBIP_RET_SUBMIT:
 		vhci_recv_ret_submit(vdev, &pdu);
-        pr_info("ROSHAN_VHCI_RX ret URB received \n");
+        //pr_info("ROSHAN_VHCI_RX ret URB received \n");
 		break;
 	case USBIP_RET_UNLINK:
-        pr_info("ROSHAN_VHCI_RX unlink URB received \n");
+        //pr_info("ROSHAN_VHCI_RX unlink URB received \n");
 		vhci_recv_ret_unlink(vdev, &pdu);
 		break;
 	case USBIP_CMD_ATTACH:
@@ -276,7 +276,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	  break;
 	case USBIP_CMD_TEST:
 		//usbip_event_add(ud, SDEV_EVENT_REMOVED);
-        pr_info("ROSHAN received text connection\n");
+        //pr_info("ROSHAN received text connection\n");
         //usb_reset_socket(sdev->udev);
 		//usbip_event_add(ud, SDEV_EVENT_DETACHED);
 		break;
