@@ -76,7 +76,7 @@ static int add_match_busid(const char *busid)
 		ret = 0;
 		goto out;
 	}
-    pr_err("ROSHAN USBIP %s not already registered\n",busid);
+    pr_debug(" %s not already registered\n",busid);
 
 	for (i = 0; i < MAX_BUSID; i++)
 		if (!busid_table[i].name[0]) {
@@ -84,7 +84,7 @@ static int add_match_busid(const char *busid)
 			if ((busid_table[i].status != STUB_BUSID_ALLOC) &&
 			    (busid_table[i].status != STUB_BUSID_REMOV))
 				busid_table[i].status = STUB_BUSID_ADDED;
-            pr_err("ROSHAN USBIP %s registered at port %d\n",busid,i);
+            pr_debug("%s registered at port %d\n",busid,i);
 			ret = 0;
 			break;
 		}

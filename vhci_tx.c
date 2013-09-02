@@ -222,7 +222,7 @@ static int vhci_send_cmd_detach(struct vhci_device *vdev)
 	memset(&msg, 0, sizeof(msg));
 	memset(&iov, 0, sizeof(iov));
 	
-	//usbip_dbg_vhci_tx("setup cmd unlink, %lu\n", unlink->seqnum);
+	usbip_dbg_vhci_tx("setup cmd unlink, %lu\n", unlink->seqnum);
 	
 	/* 1. setup usbip_header */
 	pdu_header.base.command = USBIP_CMD_DETACH;
@@ -272,6 +272,6 @@ int vhci_tx_loop(void *data)
 		usbip_dbg_vhci_tx("pending urbs ?, now wake up\n");
 	}
 	vhci_send_cmd_detach(vdev);
-	pr_info("ROSHAN_VHCI_RX tx loop exit\n");
+	pr_debug("VHCI_RX tx loop exit\n");
 	return 0;
 }

@@ -82,7 +82,7 @@ static ssize_t add_socket(struct stub_device *sdev, struct socket *socket)
 	}
 
 	if (socket) {
-		pr_info( "stub up\n");
+		pr_debug( "stub up\n");
 
 		spin_lock(&sdev->ud.lock);
 
@@ -100,14 +100,14 @@ static ssize_t add_socket(struct stub_device *sdev, struct socket *socket)
 		sdev->ud.status = SDEV_ST_USED;
 		spin_unlock(&sdev->ud.lock);
 
-        pr_info("resetting events\n");
+        pr_debug("resetting events\n");
         usbip_reset_events(&sdev->ud);
 		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
 		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
 
 
 	} else {
-		pr_info( "stub down\n");
+		pr_debug( "stub down\n");
 
 		spin_lock(&sdev->ud.lock);
 		if (sdev->ud.status != SDEV_ST_USED) {
@@ -131,7 +131,7 @@ static ssize_t add_sockfd(struct stub_device *sdev, int sockfd)
 	}
 
 	if (sockfd != -1) {
-		pr_info( "stub up\n");
+		pr_debug( "stub up\n");
 
 		spin_lock(&sdev->ud.lock);
 
@@ -164,9 +164,8 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
     socket_info = usb_get_socket_info(sdev->udev);
     memset(sdev->crypto_key,0,MAX_KEY_SIZE);
     memcpy(sdev->crypto_key,socket_info->key,strnlen(socket_info->key,MAX_KEY_SIZE));
-    pr_info("ROSHAN_HUB %p socket returned\n",socket_info);
     if(socket_info == NULL){
-        pr_info("ROSHAN_HUB Not registered %s\n",udev_busid);
+        pr_debug("ROSHAN_HUB Not registered %s\n",udev_busid);
         return -ENODEV;
     }
     return add_sockfd(sdev, sockfd);
@@ -227,16 +226,15 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	if (ud->tcp_socket) {
 		dev_dbg(&sdev->udev->dev, "shutdown tcp_socket %p\n",
 			ud->tcp_socket);
-		//kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR); ROSHAN stop shutting down connection
 	}
 
 	/* 1. stop threads */
 	if (ud->tcp_rx){
-        pr_info("ROSHAN stopping rx thread\n");
+        pr_debug("ROSHAN stopping rx thread\n");
 		kthread_stop_put(ud->tcp_rx);
     }
 	if (ud->tcp_tx){
-        pr_info("ROSHAN stopping tx thread\n");
+        pr_debug("ROSHAN stopping tx thread\n");
 		kthread_stop_put(ud->tcp_tx);
     }
 
@@ -247,12 +245,11 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * not touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
-		//sock_release(ud->tcp_socket); ROSHAN stop releasing socket
 		ud->tcp_socket = NULL;
 	}
 
 	/* 3. free used data */
-        pr_info("ROSHAN cleaning urbs\n");
+        pr_debug("ROSHAN cleaning urbs\n");
 	stub_device_cleanup_urbs(sdev);
 
 	/* 4. free stub_unlink */
@@ -277,9 +274,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 static void stub_device_unregister(struct usbip_device *ud)
 {
     struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-	struct usb_device *udev = sdev->udev;
     usb_reset_socket(sdev->udev);
-
 }
 
 static void stub_device_reset(struct usbip_device *ud)
@@ -508,12 +503,12 @@ static int stub_probe(struct usb_interface *interface,
 	busid_priv->status = STUB_BUSID_ALLOC;
     socket_info = usb_get_socket_info(udev);
     if(socket_info == NULL){
-        pr_info("ROSHAN_HUB Not registered %s\n",udev_busid);
+        pr_debug("ROSHAN_HUB Not registered %s\n",udev_busid);
     }else{
         sock = socket_info->sock;
         memset(sdev->crypto_key,0,MAX_KEY_SIZE);
         memcpy(sdev->crypto_key,socket_info->key,strnlen(socket_info->key,MAX_KEY_SIZE));
-        pr_info("ROSHAN_HUB socket returned %s \n",socket_info->key);
+        pr_debug("ROSHAN_HUB bus %s registered as key %s \n",udev_busid, socket_info->key);
         err = add_socket(sdev,socket_info->sock);
     }
 
@@ -528,25 +523,7 @@ static int stub_probe(struct usb_interface *interface,
 		stub_device_free(sdev);
 		return -ENODEV;
 	}
-    /*if(stub_send_cmd_attach(sdev) < 0){
-      pr_info("ROSHAN_HUB attach command not sent\n");
-      return 0;
-      }
-      pr_info("ROSHAN_HUB attach command sent\n");*/
 	return 0;
-}
-
-static void shutdown_busid(struct bus_id_priv *busid_priv)
-{
-	if (busid_priv->sdev && !busid_priv->shutdown_busid) {
-		busid_priv->shutdown_busid = 1;
-        dev_err(&busid_priv->sdev->interface->dev, "shut_down busid\n");
-
-		usbip_event_add(&busid_priv->sdev->ud, SDEV_EVENT_REMOVED);
-
-		/* 2. wait for the stop of the event handler */
-		usbip_stop_eh(&busid_priv->sdev->ud);
-	}
 }
 
 static void remove_busid(struct bus_id_priv *busid_priv)

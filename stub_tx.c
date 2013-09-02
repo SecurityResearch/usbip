@@ -110,11 +110,9 @@ void stub_complete(struct urb *urb)
 	/* link a urb to the queue of tx. */
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	if (priv->unlinking) {
-        //pr_dbg("URB UNLINK enqueued %lx %u\n",priv->seqnum,get_timestamp());
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, urb->status);
 		stub_free_priv_and_urb(priv);
 	} else {
-        //pr_dbg("URB SUBMIT enqueued %lx %u\n",(unsigned long int)urb,get_timestamp());
 		list_move_tail(&priv->list, &sdev->priv_tx);
 	}
 	spin_unlock_irqrestore(&sdev->priv_lock, flags);
@@ -139,7 +137,6 @@ static inline void setup_base_pdu(struct usbip_header_basic *base,
 static void setup_cmd_attach_pdu(struct usbip_header *rpdu)
 {
     setup_base_pdu(&rpdu->base, USBIP_CMD_ATTACH, 0);
-    //usbip_pack_pdu(rpdu, urb, USBIP_CMD_ATTACH, 1);
 }
 
 /**
@@ -148,7 +145,6 @@ static void setup_cmd_attach_pdu(struct usbip_header *rpdu)
 static void setup_cmd_detach_pdu(struct usbip_header *rpdu)
 {
     setup_base_pdu(&rpdu->base, USBIP_CMD_DETACH, 0);
-    //usbip_pack_pdu(rpdu, urb, USBIP_CMD_ATTACH, 1);
 }
 
 static void setup_ret_submit_pdu(struct usbip_header *rpdu, struct urb *urb)
@@ -300,7 +296,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg,
 						iov,  iovnum, txsize);
-        //pr_dbg("URB SUBMIT sent %lx %u size %lu \n",(unsigned long int)urb,get_timestamp(),txsize);
 		if (ret != txsize) {
 			dev_err(&sdev->interface->dev,
 				"sendmsg failed!, retval %d for %zd\n",
@@ -380,7 +375,6 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 
 		ret = kernel_sendmsg(sdev->ud.tcp_socket, &msg, iov,
 				     1, txsize);
-        //pr_dbg("URB UNLINK sent %lx %u\n",unlink->seqnum,get_timestamp());
 
 		if (ret != txsize) {
 			dev_err(&sdev->interface->dev,
@@ -408,9 +402,6 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 
 static int stub_send_cmd_attach(struct stub_device *sdev)
 {
-	//unsigned long flags;
-	//struct stub_unlink *unlink, *tmp;
-
 	struct msghdr msg;
 	struct kvec iov[1];
 	size_t txsize;
@@ -456,9 +447,6 @@ static int stub_send_cmd_attach(struct stub_device *sdev)
 
 static int stub_send_cmd_detach(struct stub_device *sdev)
 {
-	//unsigned long flags;
-	//struct stub_unlink *unlink, *tmp;
-
 	struct msghdr msg;
 	struct kvec iov[1];
 	size_t txsize;
@@ -508,10 +496,10 @@ int stub_tx_loop(void *data)
 	struct usbip_device *ud = data;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
     if(stub_send_cmd_attach(sdev) < 0){
-        pr_info("ROSHAN_HUB attach command not sent\n");
+        pr_err("ROSHAN_HUB attach command not sent\n");
         return 0;
     }
-    pr_info("ROSHAN_HUB attach command sent\n");
+    pr_debug("ROSHAN_HUB attach command sent\n");
 	while (!kthread_should_stop()) {
 		if (usbip_event_happened(ud)){
             pr_err("ROSHAN_STUB event happened\n");
@@ -548,11 +536,11 @@ int stub_tx_loop(void *data)
 					  kthread_should_stop()));
 	}
 
-    pr_info("ROSHAN_STUB thread stopped\n");
+    pr_debug("ROSHAN_STUB thread stopped\n");
 	if(stub_send_cmd_detach(sdev)>=0){
-        pr_info("ROSHAN_HUB detach command sent\n");
+        pr_debug("ROSHAN_HUB detach command sent\n");
     }else{
-        pr_info("ROSHAN_HUB detach command not sent\n");
+        pr_err("ROSHAN_HUB detach command not sent\n");
     }        
 	return 0;
 }

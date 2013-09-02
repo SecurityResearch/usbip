@@ -26,10 +26,6 @@
 #include <net/sock.h>
 #include <linux/kthread.h>
 #include <linux/errno.h>
-//#include <linux/unistd.h>
-//#include <linux/stdlib.h>
-//#include <sys/types.h>
-//#include <stdio.h>
 #include <linux/sched.h>
 #include "usbip_common.h"
 
@@ -391,14 +387,11 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
-		//result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_DONTWAIT);
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
-                //pr_info("ROSHAN recv timeout %d -> %d\n",result,sock->state);
 		if(retry > 3){
                 	result = kernel_sendmsg(sock, &test_msg, test_iov,
                         	             1, txsize);
-                        //pr_info("ROSHAN test sent%d -> %d\n",result,txsize);
 			retry = 0;
 		}else{
 			result = txsize;
@@ -408,7 +401,6 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 			retry++;
                     continue;
                 }
-                //pr_info("ROSHAN Thread stopped\n");
                 result = 0;
             }
 			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
@@ -445,18 +437,10 @@ struct socket *sockfd_to_socket(unsigned int sockfd)
 	struct socket *socket;
 	struct file *file;
 	struct inode *inode;
-    pid_t pid;
-
-	/* get the process id */
-	if ((pid = task_pid_nr(current)) < 0) {
-        pr_err("unable to get pid");
-	} else {
-        pr_info("The process id is %d", pid);
-	}
 
 	file = fget(sockfd);
 	if (!file) {
-		pr_err("[%d] invalid sockfd %d\n",pid,sockfd);
+		pr_err("invalid sockfd %d\n",sockfd);
 		return NULL;
 	}
 
@@ -668,11 +652,6 @@ int usbip_header_crypt(struct usbip_header *pdu, char *key, int encrypt)
     if(key==NULL)
         return 1;
 
-    /*printk("Key: ");
-    for (i = 0 ; i < 16 ; i++){
-      printk("%02x ", (unsigned char)key[i]);
-    }
-    printk("\n");*/
     tfm = crypto_alloc_cipher("aes", 4, CRYPTO_ALG_ASYNC);//crypto_alloc_tfm (algo, mode);
     if (tfm == NULL) {
 		printk("failed to load transform for %s \n", algo);
@@ -684,21 +663,10 @@ int usbip_header_crypt(struct usbip_header *pdu, char *key, int encrypt)
             printk(KERN_ERR "setkey() failed flags=%x\n", crypto_cipher_tfm(tfm)->crt_flags);
             
         }else{
-            /*printk("Non %s: ",encrypt?"Encrypted":"Decrypted");
-            for (i = 0 ; i < 16 ; i++){
-                printk("%02x ", (unsigned char)data[i]);
-            }
-            printk("\n");*/
             if(encrypt)
                 crypto_cipher_encrypt_one(tfm, data, data);
             else
                 crypto_cipher_decrypt_one(tfm, data, data);
-            
-            /*printk("%s: ",encrypt?"Encrypted":"Decrypted");
-            for (i = 0 ; i < 16 ; i++){
-                printk("%02x ", (unsigned char)data[i]);
-            }
-            printk("\n");*/
         }
         crypto_free_cipher(tfm);
 

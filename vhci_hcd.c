@@ -52,8 +52,8 @@ static int vhci_start(struct usb_hcd *vhci_hcd);
 static void vhci_stop(struct usb_hcd *hcd);
 static int vhci_get_frame_number(struct usb_hcd *hcd);
 
-static const char driver_name[] = "vhci_hcd1";
-static const char driver_desc[] = "USB/IP Virtual Host Controller USB 1.1 ";
+static const char driver_name[] = "vhci_hcd";
+static const char driver_desc[] = "USB/IP Virtual Host Controller";
 
 struct vhci_hcd *the_controller;
 
@@ -122,7 +122,6 @@ void rh_port_connect(int rhport, enum usb_device_speed speed)
 {
 	unsigned long	flags;
 
-	pr_info("ROSHAN %s connecting to port %d at speed %d\n",__func__,rhport, speed);
 	usbip_dbg_vhci_rh("rh_port_connect %d\n", rhport);
 
 	spin_lock_irqsave(&the_controller->lock, flags);
@@ -147,7 +146,7 @@ void rh_port_connect(int rhport, enum usb_device_speed speed)
 
 	spin_unlock_irqrestore(&the_controller->lock, flags);
 
-	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));//ROSHAN stopped informing the world about device. Later when server tells that the device is attached then do that
+	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
 }
 
 void rh_port_disconnect(int rhport)
@@ -230,8 +229,6 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 			changed = 1;
 		}
 	}
-
-	//pr_info("ROSHAN changed %d\n", changed);
 
 	if (hcd->state == HC_STATE_SUSPENDED)
 		usb_hcd_resume_root_hub(hcd);
@@ -673,7 +670,6 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct vhci_priv *priv;
 	struct vhci_device *vdev;
 
-	//pr_info("dequeue a urb %p\n", urb);
 
 	spin_lock_irqsave(&the_controller->lock, flags);
 
@@ -771,7 +767,6 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_tx, list) {
-		//pr_info("unlink cleanup tx %lu\n", unlink->unlink_seqnum);
 		list_del(&unlink->list);
 		kfree(unlink);
 	}
@@ -780,7 +775,6 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 		struct urb *urb;
 
 		/* give back URB of unanswered unlink request */
-		//pr_info("unlink cleanup rx %lu\n", unlink->unlink_seqnum);
 
 		urb = pickup_urb_and_free_priv(vdev, unlink->unlink_seqnum);
 		if (!urb) {
@@ -817,17 +811,22 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	struct vhci_device *vdev = container_of(ud, struct vhci_device, ud);
 
 	/* kill threads related to this sdev, if v.c. exists */
-	if (vdev->ud.tcp_tx)
+	if (vdev->ud.tcp_tx){
 		kthread_stop_put(vdev->ud.tcp_tx);
+        vdev->ud.tcp_tx = NULL;
+    }
 
 	/* need this? see stub_dev.c */
 	if (ud->tcp_socket) {
 		pr_debug("shutdown tcp_socket %p\n", ud->tcp_socket);
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
+        ud->tcp_socket = NULL;
 	}
-	if (vdev->ud.tcp_rx)
+	if (vdev->ud.tcp_rx){
 		kthread_stop_put(vdev->ud.tcp_rx);
+        vdev->ud.tcp_rx = NULL;
 
+    }
 	pr_info("stop threads\n");
 
 	/* active connection is closed */
@@ -1021,8 +1020,6 @@ static int vhci_get_frame_number(struct usb_hcd *hcd)
 /* FIXME: suspend/resume */
 static int vhci_bus_suspend(struct usb_hcd *hcd)
 {
-        //pr_info("ROSHAN %s suspending\n", __func__);
-        //pr_info("ROSHAN %s suspending\n", __func__);
 	struct vhci_hcd *vhci = hcd_to_vhci(hcd);
 
 	dev_dbg(&hcd->self.root_hub->dev, "%s\n", __func__);
@@ -1032,7 +1029,6 @@ static int vhci_bus_suspend(struct usb_hcd *hcd)
 	 * set_link_state(vhci); */
 	hcd->state = HC_STATE_SUSPENDED;
 	spin_unlock_irq(&vhci->lock);
-        //pr_info("ROSHAN %s suspended\n", __func__);
 
 	return 0;
 }
@@ -1070,7 +1066,7 @@ static struct hc_driver vhci_hc_driver = {
 	.product_desc	= driver_desc,
 	.hcd_priv_size	= sizeof(struct vhci_hcd),
 
-	.flags		= HCD_USB11,
+	.flags		= HCD_USB2,
 
 	.start		= vhci_start,
 	.stop		= vhci_stop,
@@ -1091,7 +1087,6 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 	struct usb_hcd		*hcd;
 	int			ret;
 
-        pr_info("ROSHAN %s probing\n", __func__);
 	usbip_dbg_vhci_hc("name %s id %d\n", pdev->name, pdev->id);
 
 	/* will be removed */
@@ -1127,7 +1122,6 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 	}
 
 	usbip_dbg_vhci_hc("bye\n");
-        pr_info("ROSHAN %s probed\n", __func__);
 	return 0;
 }
 
@@ -1135,7 +1129,6 @@ static int vhci_hcd_remove(struct platform_device *pdev)
 {
 	struct usb_hcd	*hcd;
 
-        pr_info("ROSHAN %s removing\n", __func__);
 	hcd = platform_get_drvdata(pdev);
 	if (!hcd)
 		return 0;
@@ -1149,7 +1142,6 @@ static int vhci_hcd_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	the_controller = NULL;
 
-        pr_info("ROSHAN %s removed\n", __func__);
 	return 0;
 }
 
@@ -1163,7 +1155,6 @@ static int vhci_hcd_suspend(struct platform_device *pdev, pm_message_t state)
 	int connected = 0;
 	int ret = 0;
 
-        //pr_info("ROSHAN %s suspending\n", __func__);
 	hcd = platform_get_drvdata(pdev);
 
 	spin_lock(&the_controller->lock);
@@ -1176,15 +1167,11 @@ static int vhci_hcd_suspend(struct platform_device *pdev, pm_message_t state)
 	spin_unlock(&the_controller->lock);
 
 	if (connected > 0) {
-		//dev_info(&pdev->dev, "We have %d active connection%s. Do not "
-		//	 "suspend.\n", connected, (connected == 1 ? "" : "s"));
 		ret =  -EBUSY;
 	} else {
-		//dev_info(&pdev->dev, "suspend vhci_hcd");
 		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	}
 
-        //pr_info("ROSHAN %s suspended\n", __func__);
 	return ret;
 }
 
@@ -1192,14 +1179,12 @@ static int vhci_hcd_resume(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 
-        //pr_info("ROSHAN %s resuming\n", __func__);
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	hcd = platform_get_drvdata(pdev);
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	usb_hcd_poll_rh_status(hcd);
 
-        //pr_info("ROSHAN %s resumed\n", __func__);
 	return 0;
 }
 

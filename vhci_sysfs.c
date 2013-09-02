@@ -228,8 +228,6 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	vdev->ud.tcp_rx = kthread_get_run(vhci_rx_loop, &vdev->ud, "vhci_rx");
 	vdev->ud.tcp_tx = kthread_get_run(vhci_tx_loop, &vdev->ud, "vhci_tx");
 
-	//rh_port_connect(rhport, speed); 
-
 	return count;
 }
 static DEVICE_ATTR(attach, S_IWUSR, NULL, store_attach);

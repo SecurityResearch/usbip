@@ -72,10 +72,6 @@ static void usbipd_help(void)
 	printf("%s\n", usbipd_help_string);
 }
 
-/*
-  ROSHAN
-  Changed to take bus id from the request object and port number separately.
- */
 static int recv_request_import(int sockfd)
 {
 	struct op_import_request req;
