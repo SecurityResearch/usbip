@@ -349,6 +349,9 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 	/* for blocks of if (usbip_dbg_flag_xmit) */
 	char *bp = buf;
 	int osize = size;
+    if(sock == NULL || buf == NULL || size < 0){
+        return -1;
+    }
     memset(&pdu_header, 0, sizeof(pdu_header));
     memset(&test_msg, 0, sizeof(test_msg));
     memset(&test_iov, 0, sizeof(test_iov));
