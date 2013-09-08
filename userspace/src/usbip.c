@@ -110,6 +110,12 @@ static const struct command cmds[] = {
 		.help  = "List imported devices ",
 		.usage = usbip_port_usage
 		},
+	{
+		.name  = "user",
+		.fn    = usbip_user,
+		.help  = "Manages users (clients) ",
+		.usage = usbip_user_usage
+		},
 	{ NULL, NULL, NULL, NULL }
 };
 

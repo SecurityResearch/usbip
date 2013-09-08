@@ -20,7 +20,7 @@ config USBIP_VHCI_HCD
 	depends on USBIP_CORE
 	default N
 	---help---
-	  This enables the USB/IP virtual host controller driver for USB 1.1,
+	  This enables the USB/IP virtual host controller driver,
 	  which is run on the remote machine.
 
 	  To compile this driver as a module, choose M here: the

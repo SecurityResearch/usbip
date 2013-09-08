@@ -43,6 +43,7 @@
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
 #include "usbip_network.h"
+#include "usbip_db.h"
 #include "utils.h"
 
 #undef  PROGNAME
@@ -90,26 +91,21 @@ static int recv_request_import(int sockfd)
     unsigned char *key_data;
     int key_data_len,len;
     char *busid;
+    char userid[SYSFS_BUS_ID_SIZE+1];
     unsigned char *ciphertext;
 
 	int found = 0;
 	int error = 0;
 	int rc;
-
+    
     unsigned int busnum,portnum;
 
 	memset(&req, 0, sizeof(req));
 	memset(&reply, 0, sizeof(reply));
     /* the key_data is read from the argument list */
-    key_data = (unsigned char *)"roshan";
-    key_data_len = strlen("roshan");
+    key_data = NULL;
+    key_data_len = 0;
   
-
-    /* gen key and iv. init the cipher ctx object */
-    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
-        printf("Couldn't initialize AES cipher\n");
-        return -1;
-    }
 
 	rc = usbip_net_recv(sockfd, &req, sizeof(req));
 	if (rc < 0) {
@@ -117,6 +113,24 @@ static int recv_request_import(int sockfd)
 		return -1;
 	}
 	PACK_OP_IMPORT_REQUEST(0, &req);
+    memset(userid,0,SYSFS_BUS_ID_SIZE+1);
+    strncpy(userid,req.userid,SYSFS_BUS_ID_SIZE);
+    key_data = usbip_sec_get_key(userid);
+    if(key_data == NULL){
+        err(" User %s not registered",userid);
+        rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,ST_NR);
+        if (rc < 0) {
+            dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
+        }
+        return -1;
+    }
+    key_data_len = strlen((char *)key_data);
+
+    /* gen key and iv. init the cipher ctx object */
+    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+        printf("Couldn't initialize AES cipher\n");
+        return -1;
+    }
 
     len = SYSFS_BUS_ID_SIZE;
     busid = (char *)aes_decrypt(&de, req.busid, &len);
@@ -212,6 +226,7 @@ static int recv_request_release(int sockfd)
     unsigned char *key_data;
     int key_data_len,len;
     char *busid;
+    char userid[SYSFS_BUS_ID_SIZE+1];
     unsigned char *ciphertext;
 	int found = 0;
 	int error = 0;
@@ -227,18 +242,32 @@ static int recv_request_release(int sockfd)
     key_data_len = strlen("roshan");
   
 
-    /* gen key and iv. init the cipher ctx object */
-    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
-        printf("Couldn't initialize AES cipher\n");
-        return -1;
-    }
-
 	rc = usbip_net_recv(sockfd, &req, sizeof(req));
 	if (rc < 0) {
 		dbg("usbip_net_recv failed: import request");
 		return -1;
 	}
 	PACK_OP_RELEASE_REQUEST(0, &req);
+
+    memset(userid,0,SYSFS_BUS_ID_SIZE+1);
+    strncpy(userid,req.userid,SYSFS_BUS_ID_SIZE);
+    key_data = usbip_sec_get_key(userid);
+    if(key_data == NULL){
+        err(" User %s not registered",userid);
+        rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,ST_NR);
+        if (rc < 0) {
+            dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
+        }
+        return -1;
+    }
+    key_data_len = strlen((char *)key_data);
+
+    /* gen key and iv. init the cipher ctx object */
+    if (aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+        printf("Couldn't initialize AES cipher\n");
+        return -1;
+    }
+
     len = SYSFS_BUS_ID_SIZE;
     busid = (char *)aes_decrypt(&de, req.busid, &len);
 
@@ -622,6 +651,11 @@ static int do_standalone_mode(gboolean daemonize)
 		return -1;
 	}
 
+    if(usbip_db_init()){
+        err("Unable to open users file\n");
+        return -1;
+    }
+
 	if (daemonize) {
 		if (daemon(0,0) < 0) {
 			err("daemonizing failed: %s", strerror(errno));
@@ -660,7 +694,8 @@ static int do_standalone_mode(gboolean daemonize)
 	freeaddrinfo(ai_head);
 	usbip_host_driver_close();
 	usbip_names_free();
-
+    usbip_db_close();
+    
 	return 0;
 }
 

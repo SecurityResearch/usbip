@@ -29,6 +29,7 @@ struct op_common {
 	/* add more error code */
 #define ST_OK	0x00
 #define ST_NA	0x01
+#define ST_NR   0x02
 	uint32_t status; /* op_code status (for reply) */
 
 } __attribute__((packed));

@@ -39,6 +39,7 @@ int usbip_unbind(int argc, char *argv[]);
 int usbip_port(int argc, char *argv[]);
 int usbip_enable(int argc, char *argv[]);
 int usbip_disable(int argc, char *argv[]);
+int usbip_user(int argc, char *argv[]);
 
 void usbip_attach_usage(void);
 void usbip_detach_usage(void);
@@ -48,5 +49,6 @@ void usbip_unbind_usage(void);
 void usbip_port_usage(void);
 void usbip_enable_usage(void);
 void usbip_disable_usage(void);
+void usbip_user_usage(void);
 
 #endif /* __USBIP_H */

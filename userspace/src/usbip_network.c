@@ -162,7 +162,11 @@ int usbip_net_recv_op_common(int sockfd, uint16_t *code)
 	}
 
 	if (op_common.status != ST_OK) {
-		dbg("request failed at peer: %d", op_common.status);
+        if(op_common.status == ST_NR){
+            err("User not registered at server\n");
+        }else{
+            dbg("request failed at peer: %d", op_common.status);
+        }
 		goto err;
 	}
 
