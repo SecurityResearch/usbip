@@ -173,9 +173,14 @@ static int recv_request_import(int sockfd)
 		error = 1;
 	}
     struct timeval tv;
-    
+    socklen_t tvlen = sizeof(struct timeval);
+    int ret1,ret2;
     tv.tv_sec = 3;  /* 3 Secs Timeout */
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
+    tv.tv_usec = 0;  /* 3 Secs Timeout */
+    ret1=setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
+    memset(&tv,0,tvlen);
+    ret2=getsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,&tvlen);
+    info("Error %d:%s\n set %d get %d timeout %ld:%ld\n",errno,strerror(errno),ret1,ret2,tv.tv_sec,tv.tv_usec);
 	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
                                   (!error ? ST_OK : ST_NA));
 	if (rc < 0) {

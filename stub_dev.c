@@ -21,6 +21,9 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 
+#include <linux/socket.h>
+#include <linux/time.h>
+
 #include "usbip_common.h"
 #include "stub.h"
 
@@ -82,8 +85,13 @@ static ssize_t add_socket(struct stub_device *sdev, struct socket *socket)
 	}
 
 	if (socket) {
-		pr_debug( "stub up\n");
+        struct timeval tval;
+        int tval_len;
+        tval_len = sizeof(struct timeval);
+        kernel_getsockopt(socket, SOL_SOCKET, SO_RCVTIMEO,(char *)&tval,&tval_len);
 
+		pr_info( "stub up timeout %ld:%ld\n",tval.tv_sec,tval.tv_usec);
+        
 		spin_lock(&sdev->ud.lock);
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {

@@ -29,6 +29,9 @@
 #include <linux/sched.h>
 #include "usbip_common.h"
 
+#include <linux/socket.h>
+#include <linux/time.h>
+
 #define DRIVER_AUTHOR "Takahiro Hirofuchi <hirofuchi@users.sourceforge.net>"
 #define DRIVER_DESC "USB/IP Core"
 
@@ -339,6 +342,9 @@ EXPORT_SYMBOL_GPL(usbip_dump_header);
 /* Receive data over TCP/IP. */
 int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 {
+	struct timeval tval;
+    int tval_len;
+
 	int result;
 	struct msghdr msg,test_msg;
     struct usbip_header pdu_header;
@@ -388,28 +394,34 @@ int usbip_recv(struct socket *sock, void *buf, int size,unsigned char *key)
 		msg.msg_controllen = 0;
 		msg.msg_namelen    = 0;
 		msg.msg_flags      = MSG_NOSIGNAL;
+        tval_len = sizeof(struct timeval);
+        kernel_getsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,(char *)&tval,&tval_len);
 
+        pr_info("receiving message with timeout %ld:%ld \n", tval.tv_sec,tval.tv_usec);
+                
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
 		if (result <= 0) {
             if(result == -EAGAIN || result == -EWOULDBLOCK){
-		if(retry > 3){
+                pr_info("timeout\n");
+                if(retry > 3){
                 	result = kernel_sendmsg(sock, &test_msg, test_iov,
-                        	             1, txsize);
-			retry = 0;
-		}else{
-			result = txsize;
-		}
+                                            1, txsize);
+                    retry = 0;
+                }else{
+                    result = txsize;
+                }
 
                 if(key != NULL && result==txsize && !kthread_should_stop()){
-			retry++;
+                    retry++;
                     continue;
                 }
                 result = 0;
             }
-			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
+			pr_info("receive sock %p buf %p size %u ret %d total %d\n",
 				 sock, buf, size, result, total);
 			goto err;
 		}
+        pr_info("received message %d \n",result);
 
 		size -= result;
 		buf += result;
