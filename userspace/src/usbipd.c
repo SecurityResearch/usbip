@@ -175,6 +175,7 @@ static int recv_request_import(int sockfd)
     struct timeval tv;
     
     tv.tv_sec = 3;  /* 3 Secs Timeout */
+    tv.tv_usec = 3;  /* 3 Secs Timeout */
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
 	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
                                   (!error ? ST_OK : ST_NA));
